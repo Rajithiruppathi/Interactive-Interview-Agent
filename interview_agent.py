@@ -6,6 +6,7 @@ import requests
 from datetime import datetime, timezone
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
+from pydantic import BaseModel, Field
 from google import genai
 from google.genai import types
 from google.genai.errors import APIError
@@ -21,13 +22,34 @@ STRUGGLE_PHRASES = {
     "i have no idea", "i'm drawing a blank", "i am not sure",
 }
 
+class InterviewerResponse(BaseModel):
+    inner_evaluation: str = Field(
+        description=(
+            "Your private technical analysis of the candidate's last response. "
+            "Highlight structural gaps, misconceptions, or genuine strengths. "
+            "This is never shown to the candidate."
+        )
+    )
+    interview_question: str = Field(
+        description=(
+            "The single, highly tailored conversational question to present to the candidate next. "
+            "This is the only text the candidate sees."
+        )
+    )
+    session_state: str = Field(
+        description='Must be exactly "CONTINUE" or "CONCLUDE". Set to "CONCLUDE" only when the candidate explicitly ends the session.'
+    )
+
+
 SYSTEM_INSTRUCTION = (
-    "You are an expert technical interviewer. "
-    "Ask role-specific questions one at a time, wait for the user's response, "
-    "and keep your tone professional. "
-    "You now have access to a web-scraping tool. If the user provides a company URL, "
-    "use your tool to scrape the website, analyze what the company does, deduce their "
-    "engineering/business culture, and use that context to tailor your interview questions."
+    "You are an expert technical interviewer conducting a structured session. "
+    "Ask role-specific questions one at a time and keep your tone professional. "
+    "You have access to a web-scraping tool. If the user provides a company URL, "
+    "scrape the website, analyze the company's engineering culture, and tailor your questions accordingly. "
+    "After each candidate response, write a private technical evaluation in 'inner_evaluation', "
+    "then craft your next question in 'interview_question'. "
+    "Set 'session_state' to 'CONCLUDE' only when the candidate says goodbye or explicitly ends the session; "
+    "otherwise always set it to 'CONTINUE'."
 )
 
 
@@ -73,6 +95,7 @@ def log_exchange(
     input_tokens: int,
     output_tokens: int,
     struggled: bool,
+    inner_evaluation: str = "",
 ) -> None:
     entry = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -83,6 +106,7 @@ def log_exchange(
         "input_tokens": input_tokens,
         "output_tokens": output_tokens,
         "struggled": struggled,
+        "inner_evaluation": inner_evaluation,
     }
     memory["performance_logs"].append(entry)
 
@@ -210,6 +234,13 @@ def _token_counts(response) -> tuple[int, int]:
     )
 
 
+def _parse_response(text: str) -> InterviewerResponse | None:
+    try:
+        return InterviewerResponse.model_validate_json(text)
+    except Exception:
+        return None
+
+
 # ---------------------------------------------------------------------------
 # Main interview loop
 # ---------------------------------------------------------------------------
@@ -225,6 +256,8 @@ def run_interview():
             config=types.GenerateContentConfig(
                 system_instruction=SYSTEM_INSTRUCTION,
                 tools=[scrape_company_website],
+                response_mime_type="application/json",
+                response_schema=InterviewerResponse,
             ),
         )
     except APIError as e:
@@ -235,7 +268,7 @@ def run_interview():
         sys.exit(1)
 
     print("=" * 60)
-    print("  Day 3 Interview Agent (Persistent Memory)")
+    print("  Day 4 Interview Agent (Structured Output + Hidden Eval)")
     print("  Paste a company URL to tailor questions, or type 'exit'/'quit'.")
     print("=" * 60)
     print()
@@ -255,7 +288,10 @@ def run_interview():
         opening = chat.send_message(opening_prompt)
         opening = _resolve_tool_calls(chat, opening)
         latency = time.perf_counter() - t0
-        print(f"Interviewer: {opening.text}\n")
+
+        parsed_opening = _parse_response(opening.text)
+        opening_text = parsed_opening.interview_question if parsed_opening else opening.text
+        print(f"Interviewer: {opening_text}\n")
         print(f"[Latency: {latency:.2f}s]\n")
     except APIError as e:
         print(f"API Error during greeting: {e}", file=sys.stderr)
@@ -265,7 +301,7 @@ def run_interview():
         sys.exit(1)
 
     current_company = "unknown"
-    last_question = opening.text  # Seed: first thing the agent said
+    last_question = opening_text  # Seed: first thing the agent said
 
     while True:
         try:
@@ -299,6 +335,16 @@ def run_interview():
 
             in_tok, out_tok = _token_counts(response)
 
+            parsed = _parse_response(response.text)
+            if parsed:
+                agent_reply = parsed.interview_question
+                inner_eval = parsed.inner_evaluation
+                session_concluded = parsed.session_state == "CONCLUDE"
+            else:
+                agent_reply = response.text
+                inner_eval = ""
+                session_concluded = False
+
             log_exchange(
                 memory,
                 company=current_company,
@@ -308,10 +354,10 @@ def run_interview():
                 input_tokens=in_tok,
                 output_tokens=out_tok,
                 struggled=struggled,
+                inner_evaluation=inner_eval,
             )
             save_memory(memory)
 
-            agent_reply = response.text
             print(f"\nInterviewer: {agent_reply}\n")
             print(f"[Latency: {latency:.2f}s | Tokens in: {in_tok} | out: {out_tok}]")
             if struggled:
@@ -319,6 +365,10 @@ def run_interview():
             print()
 
             last_question = agent_reply
+
+            if session_concluded:
+                save_memory(memory)
+                break
 
         except APIError as e:
             print(f"\nAPI Error: {e}", file=sys.stderr)
