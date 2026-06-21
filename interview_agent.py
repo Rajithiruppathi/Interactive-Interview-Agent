@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import sys
 import time
 import requests
@@ -48,7 +49,7 @@ SYSTEM_INSTRUCTION = (
     "scrape the website, analyze the company's engineering culture, and tailor your questions accordingly. "
     "\n\n"
     "CRITICAL: Every reply you send — including your opening greeting — MUST be a single valid JSON object "
-    "with exactly these three keys and no other text outside the JSON:\n"
+    "with exactly these three keys. No markdown, no code fences, no prose — raw JSON only:\n"
     "  inner_evaluation  — Your private technical analysis of the candidate's last response. "
     "Note structural gaps, misconceptions, or genuine strengths. Never reveal this to the candidate.\n"
     "  interview_question — The single tailored question (or greeting) to present to the candidate. "
@@ -244,7 +245,12 @@ def _token_counts(response) -> tuple[int, int]:
 
 def _parse_response(text: str) -> InterviewerResponse | None:
     try:
-        return InterviewerResponse.model_validate_json(text)
+        cleaned = text.strip()
+        # Strip markdown code fences the model sometimes adds
+        if cleaned.startswith("```"):
+            cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
+            cleaned = re.sub(r"\s*```$", "", cleaned.strip())
+        return InterviewerResponse.model_validate_json(cleaned.strip())
     except Exception:
         return None
 
