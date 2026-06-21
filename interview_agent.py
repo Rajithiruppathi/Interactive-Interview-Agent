@@ -1,20 +1,24 @@
-import json
 import os
 import re
 import sys
 import time
 import requests
-from datetime import datetime, timezone
+import psycopg2
+import psycopg2.extras
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from google import genai
 from google.genai import types
 from google.genai.errors import APIError
+from openinference.instrumentation.google_genai import GoogleGenAIInstrumentor
+from langfuse import get_client
 
 load_dotenv()
 
-MEMORY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "interview_memory.json")
+# Initialize Langfuse client and setup OTel instrumentation for google-genai SDK
+langfuse_client = get_client()
+GoogleGenAIInstrumentor().instrument()
 
 STRUGGLE_PHRASES = {
     "i don't remember", "i dont remember", "i'm not sure", "im not sure",
@@ -22,6 +26,7 @@ STRUGGLE_PHRASES = {
     "no idea", "i can't recall", "i cannot recall", "i'm unsure", "im unsure",
     "i have no idea", "i'm drawing a blank", "i am not sure",
 }
+
 
 class InterviewerResponse(BaseModel):
     inner_evaluation: str = Field(
@@ -63,101 +68,157 @@ SYSTEM_INSTRUCTION = (
 
 
 # ---------------------------------------------------------------------------
-# Memory helpers
+# Observability & Alerting
 # ---------------------------------------------------------------------------
 
-def load_memory() -> dict:
-    if os.path.exists(MEMORY_FILE):
-        try:
-            with open(MEMORY_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            # Ensure all top-level keys exist when loading an older schema
-            data.setdefault("user_profile", {"target_roles": [], "tech_stack": []})
-            data.setdefault("performance_logs", [])
-            data.setdefault("improvement_tracker", {})
-            return data
-        except (json.JSONDecodeError, IOError):
-            pass  # Fall through and create a fresh file
-
-    return {
-        "user_profile": {"target_roles": [], "tech_stack": []},
-        "performance_logs": [],
-        "improvement_tracker": {},
-    }
+def alert_internal_team(error_type: str, exception_details: str) -> None:
+    print(
+        f"🚨 [INTERNAL SYSTEM ALERT] Critical Infrastructure Failure Encountered: "
+        f"{error_type} | Details: {exception_details}",
+        file=sys.stderr,
+    )
 
 
-def save_memory(memory: dict) -> None:
+# ---------------------------------------------------------------------------
+# Database helpers
+# ---------------------------------------------------------------------------
+
+def get_db_connection():
+    db_url = os.getenv("DATABASE_URL")
+    if not db_url:
+        raise psycopg2.OperationalError("DATABASE_URL environment variable not set.")
+    return psycopg2.connect(db_url)
+
+
+def _init_db() -> bool:
     try:
-        with open(MEMORY_FILE, "w", encoding="utf-8") as f:
-            json.dump(memory, f, indent=2, ensure_ascii=False)
-    except IOError as e:
-        print(f"[Warning: could not save memory: {e}]", file=sys.stderr)
+        conn = get_db_connection()
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS candidate_sessions (
+                    session_id SERIAL PRIMARY KEY,
+                    timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                    target_roles TEXT[],
+                    tech_stack TEXT[]
+                );
+                CREATE TABLE IF NOT EXISTS conversation_logs (
+                    log_id SERIAL PRIMARY KEY,
+                    timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                    question TEXT,
+                    user_answer TEXT,
+                    inner_evaluation TEXT,
+                    struggled BOOLEAN DEFAULT FALSE,
+                    latency_seconds NUMERIC(6,3)
+                );
+            """)
+        conn.commit()
+        conn.close()
+        return True
+    except psycopg2.OperationalError as e:
+        alert_internal_team("DB Initialization Failure", str(e))
+        print(
+            "⚠️ [DATABASE FALLBACK] Database offline. Using local dictionary state tracking instead.",
+            file=sys.stderr,
+        )
+        return False
+
+
+def _has_prior_history() -> bool:
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM conversation_logs")
+            count = cur.fetchone()[0]
+        conn.close()
+        return count > 0
+    except psycopg2.OperationalError:
+        return False
+
+
+def _build_welcome_back_prompt() -> str:
+    default = (
+        "Greet the candidate warmly, then ask what specific job role "
+        "and company they are interviewing for today. Mention they can paste "
+        "the company's website URL so you can tailor your questions."
+    )
+    try:
+        conn = get_db_connection()
+        with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+            cur.execute("SELECT COUNT(*) FROM conversation_logs")
+            total = cur.fetchone()[0]
+            cur.execute(
+                "SELECT question, struggled FROM conversation_logs ORDER BY timestamp DESC LIMIT 3"
+            )
+            recent = cur.fetchall()
+            cur.execute(
+                "SELECT target_roles FROM candidate_sessions ORDER BY timestamp DESC LIMIT 1"
+            )
+            session_row = cur.fetchone()
+        conn.close()
+
+        roles = session_row["target_roles"] if session_row and session_row["target_roles"] else []
+        struggled_topics = [r["question"][:60] for r in recent if r["struggled"]]
+
+        ctx_parts = [f"Prior session data: {total} logged exchange(s)."]
+        if roles:
+            ctx_parts.append(f"Candidate's target roles: {', '.join(roles)}.")
+        if struggled_topics:
+            ctx_parts.append(f"Topics to revisit: {'; '.join(struggled_topics[:2])}.")
+        context_block = " ".join(ctx_parts)
+
+        return (
+            f"[Memory context — do not read this aloud verbatim: {context_block}] "
+            "Welcome the candidate back warmly. Reference their previous session. "
+            "Ask if they'd like to continue or target a new role/company today."
+        )
+    except psycopg2.OperationalError:
+        return default
 
 
 def log_exchange(
-    memory: dict,
     *,
-    company: str,
     question: str,
-    answer: str,
-    latency_seconds: float,
-    input_tokens: int,
-    output_tokens: int,
+    user_answer: str,
+    inner_evaluation: str,
     struggled: bool,
-    inner_evaluation: str = "",
+    latency_seconds: float,
+    fallback_log: list,
 ) -> None:
-    entry = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "company_scraped": company,
-        "question": question,
-        "user_answer": answer,
-        "latency_seconds": round(latency_seconds, 3),
-        "input_tokens": input_tokens,
-        "output_tokens": output_tokens,
-        "struggled": struggled,
-        "inner_evaluation": inner_evaluation,
-    }
-    memory["performance_logs"].append(entry)
-
-    if struggled and question:
-        # Use the first 80 chars of the question as the topic key
-        topic = question[:80].strip()
-        memory["improvement_tracker"][topic] = (
-            memory["improvement_tracker"].get(topic, 0) + 1
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO conversation_logs
+                    (question, user_answer, inner_evaluation, struggled, latency_seconds)
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (question, user_answer, inner_evaluation, struggled, round(latency_seconds, 3)),
+            )
+        conn.commit()
+        conn.close()
+    except psycopg2.OperationalError as e:
+        alert_internal_team("Log Exchange DB Write Failure", str(e))
+        print(
+            "⚠️ [DATABASE FALLBACK] Database offline. Using local dictionary state tracking instead.",
+            file=sys.stderr,
         )
+        fallback_log.append({
+            "question": question,
+            "user_answer": user_answer,
+            "inner_evaluation": inner_evaluation,
+            "struggled": struggled,
+            "latency_seconds": round(latency_seconds, 3),
+        })
 
+
+# ---------------------------------------------------------------------------
+# Struggle detection
+# ---------------------------------------------------------------------------
 
 def detect_struggle(text: str) -> bool:
     lowered = text.lower()
     return any(phrase in lowered for phrase in STRUGGLE_PHRASES)
-
-
-def _build_welcome_back_prompt(memory: dict) -> str:
-    logs = memory["performance_logs"]
-    last = logs[-1]
-    company = last.get("company_scraped") or "unknown"
-    total = len(logs)
-    roles = memory["user_profile"].get("target_roles", [])
-    struggled_topics = list(memory.get("improvement_tracker", {}).keys())
-
-    ctx_parts = [f"Past session data: {total} logged Q&A exchange(s)."]
-    if company and company != "unknown":
-        ctx_parts.append(f"Last company discussed: {company}.")
-    if roles:
-        ctx_parts.append(f"Candidate's target roles: {', '.join(roles)}.")
-    if struggled_topics:
-        ctx_parts.append(
-            f"Topics the candidate struggled with (to revisit): "
-            f"{', '.join(struggled_topics[:3])}."
-        )
-    context_block = " ".join(ctx_parts)
-
-    return (
-        f"[Memory context — do not read this aloud verbatim: {context_block}] "
-        "Welcome the candidate back warmly. Reference their previous session specifically "
-        "(e.g. mention the last company or topic they worked on). "
-        "Then ask if they'd like to pick up where they left off or target a new role/company today."
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -203,7 +264,7 @@ def scrape_company_website(url: str) -> str:
 # Gemini client + tool-call loop
 # ---------------------------------------------------------------------------
 
-def get_client():
+def get_gemini_client():
     api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
     if not api_key:
         print("Error: GEMINI_API_KEY environment variable not found.", file=sys.stderr)
@@ -233,20 +294,9 @@ def _resolve_tool_calls(chat, response):
     return response
 
 
-def _token_counts(response) -> tuple[int, int]:
-    meta = getattr(response, "usage_metadata", None)
-    if meta is None:
-        return 0, 0
-    return (
-        getattr(meta, "prompt_token_count", 0) or 0,
-        getattr(meta, "candidates_token_count", 0) or 0,
-    )
-
-
 def _parse_response(text: str) -> InterviewerResponse | None:
     try:
         cleaned = text.strip()
-        # Strip markdown code fences the model sometimes adds
         if cleaned.startswith("```"):
             cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
             cleaned = re.sub(r"\s*```$", "", cleaned.strip())
@@ -260,9 +310,11 @@ def _parse_response(text: str) -> InterviewerResponse | None:
 # ---------------------------------------------------------------------------
 
 def run_interview():
-    memory = load_memory()
-    has_history = bool(memory["performance_logs"])
-    client = get_client()
+    fallback_log: list = []
+    db_online = _init_db()
+    has_history = _has_prior_history() if db_online else False
+
+    client = get_gemini_client()
 
     try:
         chat = client.chats.create(
@@ -273,22 +325,22 @@ def run_interview():
             ),
         )
     except APIError as e:
-        print(f"API Error while starting session: {e}", file=sys.stderr)
+        alert_internal_team("Gemini Chat Initialization Failure", str(e))
         sys.exit(1)
     except Exception as e:
-        print(f"Unexpected error while starting session: {e}", file=sys.stderr)
+        alert_internal_team("Unexpected Chat Initialization Failure", str(e))
         sys.exit(1)
 
     print("=" * 60)
-    print("  Day 4 Interview Agent (Structured Output + Hidden Eval)")
+    print("  Day 5 Interview Agent (Enterprise Migration + Observability)")
     print("  Paste a company URL to tailor questions, or type 'exit'/'quit'.")
     print("=" * 60)
     print()
 
-    # Opening greeting — personalised when prior history exists
+    # Opening greeting — personalised when prior history exists in DB
     try:
         opening_prompt = (
-            _build_welcome_back_prompt(memory)
+            _build_welcome_back_prompt()
             if has_history
             else (
                 "Greet the candidate warmly, then ask what specific job role "
@@ -296,31 +348,26 @@ def run_interview():
                 "the company's website URL so you can tailor your questions."
             )
         )
-        t0 = time.perf_counter()
         opening = chat.send_message(opening_prompt)
         opening = _resolve_tool_calls(chat, opening)
-        latency = time.perf_counter() - t0
 
         parsed_opening = _parse_response(opening.text)
         opening_text = parsed_opening.interview_question if parsed_opening else opening.text
         print(f"Interviewer: {opening_text}\n")
-        print(f"[Latency: {latency:.2f}s]\n")
     except APIError as e:
-        print(f"API Error during greeting: {e}", file=sys.stderr)
+        alert_internal_team("Gemini API Error During Greeting", str(e))
         sys.exit(1)
     except Exception as e:
-        print(f"Unexpected error during greeting: {e}", file=sys.stderr)
+        alert_internal_team("Unexpected Error During Greeting", str(e))
         sys.exit(1)
 
-    current_company = "unknown"
-    last_question = opening_text  # Seed: first thing the agent said
+    last_question = opening_text
 
     while True:
         try:
             user_input = input("You: ").strip()
         except (EOFError, KeyboardInterrupt):
             print("\nSession ended.")
-            save_memory(memory)
             break
 
         if not user_input:
@@ -328,14 +375,7 @@ def run_interview():
 
         if user_input.lower() in {"exit", "quit"}:
             print("\nInterviewer: Thank you for your time. Good luck with your interview!")
-            save_memory(memory)
             break
-
-        # Track company URL if the user pastes one
-        for word in user_input.split():
-            if word.startswith("http://") or word.startswith("https://"):
-                current_company = word
-                break
 
         struggled = detect_struggle(user_input)
 
@@ -344,8 +384,6 @@ def run_interview():
             response = chat.send_message(user_input)
             response = _resolve_tool_calls(chat, response)
             latency = time.perf_counter() - t0
-
-            in_tok, out_tok = _token_counts(response)
 
             parsed = _parse_response(response.text)
             if parsed:
@@ -358,37 +396,30 @@ def run_interview():
                 session_concluded = False
 
             log_exchange(
-                memory,
-                company=current_company,
                 question=last_question,
-                answer=user_input,
-                latency_seconds=latency,
-                input_tokens=in_tok,
-                output_tokens=out_tok,
-                struggled=struggled,
+                user_answer=user_input,
                 inner_evaluation=inner_eval,
+                struggled=struggled,
+                latency_seconds=latency,
+                fallback_log=fallback_log,
             )
-            save_memory(memory)
 
             print(f"\nInterviewer: {agent_reply}\n")
-            print(f"[Latency: {latency:.2f}s | Tokens in: {in_tok} | out: {out_tok}]")
-            if struggled:
-                print("[Memory: flagged as a struggle topic for future review]")
-            print()
 
             last_question = agent_reply
 
             if session_concluded:
-                save_memory(memory)
                 break
 
         except APIError as e:
-            print(f"\nAPI Error: {e}", file=sys.stderr)
-            save_memory(memory)
+            err_str = str(e)
+            if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
+                alert_internal_team("API Rate Limit (429 Resource Exhausted)", err_str)
+            else:
+                alert_internal_team("Gemini API Error", err_str)
             sys.exit(1)
         except Exception as e:
-            print(f"\nUnexpected error: {e}", file=sys.stderr)
-            save_memory(memory)
+            alert_internal_team("Unexpected Runtime Error", str(e))
             sys.exit(1)
 
 
