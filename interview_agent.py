@@ -46,10 +46,18 @@ SYSTEM_INSTRUCTION = (
     "Ask role-specific questions one at a time and keep your tone professional. "
     "You have access to a web-scraping tool. If the user provides a company URL, "
     "scrape the website, analyze the company's engineering culture, and tailor your questions accordingly. "
-    "After each candidate response, write a private technical evaluation in 'inner_evaluation', "
-    "then craft your next question in 'interview_question'. "
-    "Set 'session_state' to 'CONCLUDE' only when the candidate says goodbye or explicitly ends the session; "
-    "otherwise always set it to 'CONTINUE'."
+    "\n\n"
+    "CRITICAL: Every reply you send — including your opening greeting — MUST be a single valid JSON object "
+    "with exactly these three keys and no other text outside the JSON:\n"
+    "  inner_evaluation  — Your private technical analysis of the candidate's last response. "
+    "Note structural gaps, misconceptions, or genuine strengths. Never reveal this to the candidate.\n"
+    "  interview_question — The single tailored question (or greeting) to present to the candidate. "
+    "This is the only content the candidate sees.\n"
+    "  session_state — The string 'CONTINUE' or 'CONCLUDE'. "
+    "Use 'CONCLUDE' only when the candidate explicitly ends the session; otherwise always 'CONTINUE'.\n\n"
+    'Example: {"inner_evaluation": "Candidate demonstrated solid feature engineering but skipped class-imbalance handling.", '
+    '"interview_question": "How would you handle severe class imbalance in your fraud dataset?", '
+    '"session_state": "CONTINUE"}'
 )
 
 
@@ -256,8 +264,6 @@ def run_interview():
             config=types.GenerateContentConfig(
                 system_instruction=SYSTEM_INSTRUCTION,
                 tools=[scrape_company_website],
-                response_mime_type="application/json",
-                response_schema=InterviewerResponse,
             ),
         )
     except APIError as e:
