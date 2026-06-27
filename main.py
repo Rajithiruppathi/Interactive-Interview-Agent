@@ -201,8 +201,13 @@ label, input, textarea, button, select {
 }
 
 /* ── Sidebar structural spacing ──────────────────────────── */
+/* Outer wrapper — strip top padding so stSidebarUserContent owns it */
 [data-testid="stSidebar"] > div:first-child {
-    padding: 1.6rem 1.1rem 1rem 1.1rem !important;
+    padding: 0 0.9rem 1rem 0.9rem !important;
+}
+/* Inner user-content container — single source of top spacing */
+div[data-testid="stSidebarUserContent"] {
+    padding-top: 1rem !important;
 }
 [data-testid="stSidebar"] .stSelectbox {
     margin-bottom: 1.2rem !important;
@@ -219,9 +224,12 @@ label, input, textarea, button, select {
 [data-testid="stSidebar"] h1,
 [data-testid="stSidebar"] h2,
 [data-testid="stSidebar"] h3 {
-    margin-bottom: 1.4rem !important;
-    padding-bottom: 0.55rem !important;
+    margin-top: 0 !important;
+    margin-bottom: 1.2rem !important;
+    padding-bottom: 0.5rem !important;
     border-bottom: 1px solid #1e293b;
+    font-size: 1rem !important;
+    letter-spacing: 0.2px;
 }
 
 /* ── Chat input bar ──────────────────────────────────────── */
