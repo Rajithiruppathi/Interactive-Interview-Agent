@@ -9,9 +9,6 @@ from google import genai
 
 load_dotenv(override=True)
 
-st.title("🎙️ Interactive Interview & Tracker Dashboard")
-st.write("Select your target role or log your real-world interview experiences.")
-
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -28,27 +25,109 @@ html, body, [class*="css"], .stMarkdown, .stText, p, span, div {
     color: #e2e8f0;
 }
 
+/* ── Hide default Streamlit chrome ──────────────────────── */
+#MainMenu, header[data-testid="stHeader"], footer { display: none !important; }
+
 /* ── Main content column ─────────────────────────────────── */
 .block-container {
-    padding-top: 2rem;
+    padding-top: 0rem !important;
     padding-bottom: 2.5rem;
-    max-width: 880px;
+    max-width: 920px;
     background: transparent;
 }
 
-/* ── Page title ─────────────────────────────────────────── */
-h1 {
-    font-size: 1.75rem !important;
-    font-weight: 700 !important;
-    letter-spacing: -0.5px;
+/* ── Hero section ────────────────────────────────────────── */
+.hero-wrap {
+    padding: 3.2rem 0 2.4rem 0;
+    text-align: center;
+}
+.hero-eyebrow {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+    color: #60a5fa;
+    background: rgba(59,130,246,0.1);
+    border: 1px solid rgba(59,130,246,0.25);
+    border-radius: 20px;
+    padding: 4px 14px;
+    margin-bottom: 20px;
+}
+.hero-headline {
+    font-size: 2.75rem;
+    font-weight: 800;
+    letter-spacing: -1px;
+    line-height: 1.15;
+    margin: 0 0 16px 0;
+    background: linear-gradient(135deg, #f1f5f9 30%, #60a5fa 70%, #a78bfa 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+.hero-sub {
+    font-size: 1.05rem;
+    color: #64748b;
+    max-width: 560px;
+    margin: 0 auto 36px auto;
+    line-height: 1.7;
+    font-weight: 400;
+}
+.metrics-grid {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+}
+.metric-card {
+    background: linear-gradient(135deg, #161b27, #1a2035);
+    border: 1px solid #1e293b;
+    border-radius: 14px;
+    padding: 20px 28px;
+    min-width: 160px;
+    text-align: center;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+.metric-number {
+    font-size: 1.9rem;
+    font-weight: 800;
     background: linear-gradient(90deg, #60a5fa, #a78bfa);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    margin-bottom: 0.2rem !important;
+    line-height: 1;
+    margin-bottom: 6px;
 }
-.stApp > div > div > div > div > p {
+.metric-label {
+    font-size: 11.5px;
     color: #64748b;
-    font-size: 14px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+}
+
+/* ── Form (tab 2) — high-contrast text ──────────────────── */
+[data-testid="stForm"] label,
+[data-testid="stForm"] .stTextInput label,
+[data-testid="stForm"] .stTextArea label,
+[data-testid="stForm"] .stDateInput label,
+[data-testid="stForm"] .stSlider label,
+[data-testid="stForm"] p {
+    color: #e2e8f0 !important;
+    font-weight: 500 !important;
+}
+[data-testid="stForm"] input,
+[data-testid="stForm"] textarea {
+    color: #f1f5f9 !important;
+    background: #1e293b !important;
+    caret-color: #60a5fa !important;
+}
+[data-testid="stForm"] input::placeholder,
+[data-testid="stForm"] textarea::placeholder {
+    color: #475569 !important;
+}
+[data-testid="stForm"] [data-baseweb="slider"] [data-testid="stSliderTickBarMin"],
+[data-testid="stForm"] [data-baseweb="slider"] [data-testid="stSliderTickBarMax"] {
+    color: #94a3b8 !important;
 }
 
 /* ── Sidebar ─────────────────────────────────────────────── */
@@ -241,6 +320,31 @@ hr { border-color: #1e293b !important; }
     border-top-color: #3b82f6 !important;
 }
 </style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<div class="hero-wrap">
+    <span class="hero-eyebrow">AI-Powered Interview Intelligence</span>
+    <h1 class="hero-headline">Ace Every Interview.<br>Track Every Outcome.</h1>
+    <p class="hero-sub">
+        Practice with a real-time AI interviewer that adapts to your tech stack,
+        then log and analyse your actual interview experiences — all in one place.
+    </p>
+    <div class="metrics-grid">
+        <div class="metric-card">
+            <div class="metric-number">50+</div>
+            <div class="metric-label">Roles Covered</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-number">Live</div>
+            <div class="metric-label">Real-Time AI Feedback</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-number">DB</div>
+            <div class="metric-label">Enterprise DB Backed</div>
+        </div>
+    </div>
+</div>
 """, unsafe_allow_html=True)
 
 
