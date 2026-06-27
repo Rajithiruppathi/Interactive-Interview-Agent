@@ -159,7 +159,15 @@ html, body, [class*="css"], .stMarkdown, .stText, p, span, div {
     background: #1e293b !important;
     border: 1px solid #334155 !important;
     border-radius: 10px !important;
-    color: #e2e8f0 !important;
+    color: #ffffff !important;
+}
+/* Force selected value text inside selectbox to bright white */
+[data-baseweb="select"] span,
+[data-baseweb="select"] > div > div,
+[data-baseweb="select"] > div > div > div,
+[data-baseweb="select"] [data-testid="stSelectboxVirtualDropdown"],
+[data-testid="stSidebar"] [data-baseweb="select"] *:not(svg):not(path) {
+    color: #ffffff !important;
 }
 .stTextInput > div > div,
 .stTextArea > div > div,
@@ -175,6 +183,30 @@ html, body, [class*="css"], .stMarkdown, .stText, p, span, div {
 [data-baseweb="input"]:focus-within {
     border-color: #3b82f6 !important;
     box-shadow: 0 0 0 3px rgba(59,130,246,0.15) !important;
+}
+
+/* ── Sidebar structural spacing ──────────────────────────── */
+[data-testid="stSidebar"] > div:first-child {
+    padding: 1.6rem 1.1rem 1rem 1.1rem !important;
+}
+[data-testid="stSidebar"] .stSelectbox {
+    margin-bottom: 1.2rem !important;
+}
+[data-testid="stSidebar"] .stTextInput {
+    margin-bottom: 1rem !important;
+}
+[data-testid="stSidebar"] [data-testid="stAlert"],
+[data-testid="stSidebar"] .stSuccess,
+[data-testid="stSidebar"] .stWarning {
+    margin-top: 1.2rem !important;
+    margin-bottom: 1.4rem !important;
+}
+[data-testid="stSidebar"] h1,
+[data-testid="stSidebar"] h2,
+[data-testid="stSidebar"] h3 {
+    margin-bottom: 1.4rem !important;
+    padding-bottom: 0.55rem !important;
+    border-bottom: 1px solid #1e293b;
 }
 
 /* ── Chat input bar ──────────────────────────────────────── */
@@ -294,16 +326,30 @@ html, body, [class*="css"], .stMarkdown, .stText, p, span, div {
 .tag-role { background: rgba(139,92,246,0.2); color: #c4b5fd; }
 
 /* ── Selectbox dropdown menu ─────────────────────────────── */
-[data-baseweb="popover"] {
+[data-baseweb="popover"],
+[data-baseweb="popover"] > div {
     background: #1e293b !important;
     border: 1px solid #334155 !important;
     border-radius: 10px !important;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5) !important;
 }
 [data-baseweb="menu"] {
     background: #1e293b !important;
 }
-[data-baseweb="menu"] li:hover {
+[data-baseweb="menu"] li,
+[data-baseweb="option"] {
+    background: #1e293b !important;
+    color: #e2e8f0 !important;
+}
+[data-baseweb="menu"] li:hover,
+[data-baseweb="option"]:hover {
     background: #2d3f5e !important;
+    color: #ffffff !important;
+}
+[data-baseweb="menu"] [aria-selected="true"],
+[data-baseweb="option"][aria-selected="true"] {
+    background: rgba(59,130,246,0.18) !important;
+    color: #60a5fa !important;
 }
 
 /* ── Slider ──────────────────────────────────────────────── */
