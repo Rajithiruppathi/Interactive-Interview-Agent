@@ -12,6 +12,67 @@ load_dotenv(override=True)
 st.title("🎙️ Interactive Interview & Tracker Dashboard")
 st.write("Select your target role or log your real-world interview experiences.")
 
+st.markdown("""
+<style>
+/* ── Main body ──────────────────────────────────────────── */
+.block-container {
+    padding-top: 1.8rem;
+    padding-bottom: 2rem;
+    max-width: 860px;
+}
+
+/* ── Tab strip ──────────────────────────────────────────── */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 6px;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 0;
+}
+.stTabs [data-baseweb="tab"] {
+    padding: 8px 22px;
+    border-radius: 8px 8px 0 0;
+    font-weight: 500;
+    font-size: 14px;
+    color: #475569;
+    background: transparent;
+}
+.stTabs [aria-selected="true"] {
+    background-color: #eef2ff;
+    color: #3730a3;
+    border-bottom: 3px solid #4f46e5;
+}
+
+/* ── Sidebar profile cards ──────────────────────────────── */
+.profile-card {
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin: 8px 0;
+    border-left: 4px solid;
+}
+.tech-card  { background: #eff6ff; border-left-color: #2563eb; }
+.role-card  { background: #f5f3ff; border-left-color: #7c3aed; }
+
+.card-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    color: #64748b;
+    margin-bottom: 8px;
+}
+.tag-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+.tag-tech { background: #dbeafe; color: #1d4ed8; }
+.tag-role { background: #ede9fe; color: #5b21b6; }
+</style>
+""", unsafe_allow_html=True)
+
 
 # ---------------------------------------------------------------------------
 # DB helpers — connection-per-operation pattern (no cached connections)
@@ -251,12 +312,31 @@ if selected_role and selected_company:
 else:
     st.sidebar.warning("Please fill out your custom role/company.")
 
-# Show DB-sourced profile in sidebar when available
+# Show DB-sourced profile in sidebar as styled cards
 profile = st.session_state.candidate_profile
-if profile["tech_stack"]:
-    st.sidebar.info(f"🗄️ DB Tech Stack: {', '.join(profile['tech_stack'])}")
-if profile["target_roles"]:
-    st.sidebar.info(f"🗄️ DB Target Roles: {', '.join(profile['target_roles'])}")
+if profile["tech_stack"] or profile["target_roles"]:
+    cards_html = ""
+    if profile["tech_stack"]:
+        tags = "".join(
+            f'<span class="tag tag-tech">{t}</span>'
+            for t in profile["tech_stack"]
+        )
+        cards_html += f"""
+        <div class="profile-card tech-card">
+            <div class="card-label">🗄️ DB Tech Stack</div>
+            <div class="tag-row">{tags}</div>
+        </div>"""
+    if profile["target_roles"]:
+        tags = "".join(
+            f'<span class="tag tag-role">{r}</span>'
+            for r in profile["target_roles"]
+        )
+        cards_html += f"""
+        <div class="profile-card role-card">
+            <div class="card-label">🎯 DB Target Roles</div>
+            <div class="tag-row">{tags}</div>
+        </div>"""
+    st.sidebar.markdown(cards_html, unsafe_allow_html=True)
 
 
 # ---------------------------------------------------------------------------
