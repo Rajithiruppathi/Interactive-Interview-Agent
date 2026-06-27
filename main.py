@@ -1,3 +1,4 @@
+import io
 import os
 import streamlit as st
 import datetime
@@ -6,6 +7,7 @@ import psycopg2
 import psycopg2.extras
 from dotenv import load_dotenv
 from google import genai
+from streamlit_mic_recorder import mic_recorder
 
 load_dotenv(override=True)
 
@@ -257,9 +259,37 @@ div[data-testid="stSidebarUserContent"] {
     border-color: #3b82f6 !important;
     box-shadow: 0 0 0 3px rgba(59,130,246,0.15) !important;
 }
-[data-testid="stChatInput"] textarea {
-    color: #e2e8f0 !important;
+/* Force typed text to bright white — target every selector Chrome uses */
+[data-testid="stChatInput"] textarea,
+.stChatInput textarea,
+div[data-testid="stChatInput"] textarea,
+[data-testid="stChatInput"] > div textarea,
+[data-testid="stChatInput"] > div > div textarea {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
     background: transparent !important;
+    caret-color: #60a5fa !important;
+}
+[data-testid="stChatInput"] textarea::placeholder {
+    color: #475569 !important;
+    -webkit-text-fill-color: #475569 !important;
+}
+
+/* ── Voice mode recorder button ──────────────────────────── */
+.voice-mode-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, rgba(37,99,235,0.08), rgba(124,58,237,0.06));
+    border: 1px solid rgba(59,130,246,0.2);
+    border-radius: 12px;
+    margin-bottom: 12px;
+}
+.voice-status {
+    font-size: 13px;
+    color: #94a3b8;
+    font-style: italic;
 }
 
 /* ── Chat bubbles — assistant ────────────────────────────── */
@@ -727,7 +757,20 @@ def generate_with_fallback(contents: str, system_instruction: str = "") -> str:
         messages.append({"role": "system", "content": system_instruction})
     messages.append({"role": "user", "content": contents})
     resp = oai.chat.completions.create(model="gpt-4o-mini", messages=messages)
-    return resp.choices[0].message.content
+    return resp.choices[0].message.content or ""
+
+
+def transcribe_audio(audio_bytes: bytes) -> str:
+    """Sends raw audio bytes to OpenAI Whisper and returns the transcript text."""
+    buf = io.BytesIO(audio_bytes)
+    buf.name = "recording.webm"
+    oai = get_openai_client()
+    result = oai.audio.transcriptions.create(
+        model="whisper-1",
+        file=buf,
+        response_format="text",
+    )
+    return (result if isinstance(result, str) else result.text).strip()
 
 
 # ---------------------------------------------------------------------------
@@ -745,6 +788,8 @@ if "evaluation_report" not in st.session_state:
 if "candidate_profile" not in st.session_state:
     # Fetch once per browser session — re-fetched only when session resets
     st.session_state.candidate_profile = fetch_candidate_profile()
+if "last_voice_id" not in st.session_state:
+    st.session_state.last_voice_id = None
 
 
 # ---------------------------------------------------------------------------
@@ -878,7 +923,45 @@ with tab1:
             with st.chat_message(msg["role"]):
                 st.write(msg["content"])
 
-        user_input = st.chat_input("Type your technical answer here...")
+        # ── Input mode toggle ────────────────────────────────────────────────
+        mode_col, _ = st.columns([2, 5])
+        with mode_col:
+            voice_mode = st.toggle(
+                "🎙️ Voice Mode",
+                value=False,
+                key="voice_mode_toggle",
+                help="Switch to microphone input — your speech is transcribed by Whisper then sent to the AI interviewer.",
+            )
+
+        user_input: str | None = None
+
+        if not voice_mode:
+            user_input = st.chat_input("Type your technical answer here...")
+        else:
+            st.markdown(
+                '<div class="voice-mode-wrap">'
+                '<span style="font-size:22px">🎙️</span>'
+                '<span class="voice-status">Click <strong>Start</strong>, speak your answer, then click <strong>Stop</strong>. '
+                'Your answer will be transcribed and sent automatically.</span>'
+                '</div>',
+                unsafe_allow_html=True,
+            )
+            audio = mic_recorder(
+                start_prompt="⏺ Start Recording",
+                stop_prompt="⏹ Stop & Send",
+                just_once=True,
+                use_container_width=False,
+                key="voice_recorder",
+            )
+            if audio and audio.get("id") != st.session_state.last_voice_id:
+                st.session_state.last_voice_id = audio["id"]
+                with st.spinner("Transcribing audio via Whisper..."):
+                    try:
+                        user_input = transcribe_audio(audio["bytes"])
+                        st.info(f"📝 Transcribed: *\"{user_input}\"*")
+                    except Exception as transcribe_err:
+                        st.error(f"Transcription failed: {transcribe_err}")
+
         if user_input:
             st.session_state.messages.append({"role": "user", "content": user_input})
             with st.chat_message("user"):
