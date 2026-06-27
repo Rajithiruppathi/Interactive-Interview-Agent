@@ -9,14 +9,26 @@ from google import genai
 
 load_dotenv(override=True)
 
+st.set_page_config(
+    page_title="AI Interview Coach",
+    page_icon="🎙️",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 /* ── Global typography & base ───────────────────────────── */
-html, body, [class*="css"], .stMarkdown, .stText, p, span, div {
+html, body, [class*="css"], .stMarkdown, .stText, p,
+label, input, textarea, button, select {
     font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
     -webkit-font-smoothing: antialiased;
+}
+/* Preserve Material Icons/Symbols font for Streamlit avatars & icons */
+[class*="material-icons"], [class*="material-symbols"], .stChatMessage [data-testid="chatAvatarIcon-assistant"] * {
+    font-family: 'Material Symbols Rounded', 'Material Icons' !important;
 }
 
 /* ── App background — deep slate ────────────────────────── */
@@ -25,14 +37,17 @@ html, body, [class*="css"], .stMarkdown, .stText, p, span, div {
     color: #e2e8f0;
 }
 
-/* ── Hide default Streamlit chrome ──────────────────────── */
+/* ── Hide default Streamlit chrome (keep sidebar toggle) ─── */
 #MainMenu, header[data-testid="stHeader"], footer { display: none !important; }
+[data-testid="stSidebarCollapseButton"],
+[data-testid="collapsedControl"] { display: flex !important; }
 
 /* ── Main content column ─────────────────────────────────── */
 .block-container {
     padding-top: 0rem !important;
     padding-bottom: 2.5rem;
-    max-width: 920px;
+    max-width: 860px;
+    margin: 0 auto !important;
     background: transparent;
 }
 
