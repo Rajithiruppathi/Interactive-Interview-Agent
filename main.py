@@ -390,6 +390,50 @@ div[data-testid="stSidebarUserContent"] {
     color: #60a5fa !important;
 }
 
+/* ── Active context banner ───────────────────────────────── */
+.context-banner {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    background: linear-gradient(135deg, rgba(37,99,235,0.10), rgba(124,58,237,0.07));
+    border: 1px solid rgba(59,130,246,0.22);
+    border-radius: 12px;
+    padding: 11px 20px;
+    margin: 0 0 1.4rem 0;
+}
+.context-label {
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #475569;
+}
+.context-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(59,130,246,0.14);
+    border: 1px solid rgba(59,130,246,0.28);
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #93c5fd;
+}
+.context-pill-purple {
+    background: rgba(139,92,246,0.14);
+    border-color: rgba(139,92,246,0.28);
+    color: #c4b5fd;
+}
+.context-arrow { color: #334155; font-size: 16px; }
+
+/* ── CRM log table ───────────────────────────────────────── */
+[data-testid="stDataFrame"] {
+    border-radius: 10px !important;
+    overflow: hidden;
+}
+
 /* ── Slider ──────────────────────────────────────────────── */
 [data-testid="stSlider"] [data-baseweb="slider"] [role="slider"] {
     background: #3b82f6 !important;
@@ -577,6 +621,45 @@ def _test_no_connection_leak() -> bool:
             conn.close()
 
 
+def fetch_all_logs() -> list[dict]:
+    """Returns all rows from interview_logs for CRM display, newest first."""
+    conn = None
+    try:
+        conn = get_db_conn()
+        with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+            cur.execute(
+                "SELECT id, company_name, role_name, interview_date, "
+                "self_evaluation, created_at "
+                "FROM interview_logs ORDER BY created_at DESC"
+            )
+            rows = cur.fetchall()
+        return [dict(r) for r in rows]
+    except Exception:
+        return []
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+def fetch_historical_scores() -> list[dict]:
+    """Returns the 5 most recent self_evaluation scores for grading comparison."""
+    conn = None
+    try:
+        conn = get_db_conn()
+        with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+            cur.execute(
+                "SELECT company_name, role_name, interview_date, self_evaluation "
+                "FROM interview_logs ORDER BY created_at DESC LIMIT 5"
+            )
+            rows = cur.fetchall()
+        return [dict(r) for r in rows]
+    except Exception:
+        return []
+    finally:
+        if conn is not None:
+            conn.close()
+
+
 # ---------------------------------------------------------------------------
 # App startup
 # ---------------------------------------------------------------------------
@@ -727,6 +810,24 @@ if profile["tech_stack"] or profile["target_roles"]:
 
 
 # ---------------------------------------------------------------------------
+# Active context banner — persists above all tabs so target is never lost
+# ---------------------------------------------------------------------------
+
+if selected_role and selected_company:
+    st.markdown(
+        f"""
+        <div class="context-banner">
+            <span class="context-label">Active Target</span>
+            <span class="context-pill">🎯 {selected_role}</span>
+            <span class="context-arrow">→</span>
+            <span class="context-pill context-pill-purple">🏢 {selected_company}</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Tab 1 — Live Mock Interview
 # ---------------------------------------------------------------------------
 
@@ -870,16 +971,37 @@ with tab1:
                             else ""
                         )
 
+                        # Pull historical self-evaluation scores from DB for growth comparison
+                        past_scores = fetch_historical_scores()
+                        if past_scores:
+                            past_lines = "\n".join(
+                                f"  • {r['role_name']} at {r['company_name']} "
+                                f"({r['interview_date']}): self-score {r['self_evaluation']}/10"
+                                for r in past_scores
+                            )
+                            history_clause = (
+                                f"\n\nCANDIDATE HISTORICAL PERFORMANCE (logged in DB, newest first):\n"
+                                f"{past_lines}\n\n"
+                                f"MANDATORY: Add a '📈 Growth Trajectory' section that explicitly "
+                                f"compares today's AI-graded performance to the historical self-scores above. "
+                                f"Call out concrete improvements, regressions, or plateaus. "
+                                f"Reference actual score numbers and session dates."
+                            )
+                        else:
+                            history_clause = ""
+
                         eval_prompt = (
                             f"You are an expert technical hiring panel grader at {selected_company}. "
                             f"Review the following mock interview transcript for a {selected_role} candidate:\n\n"
                             f"```\n{full_transcript}\n```\n\n"
                             f"Generate a clear, structured markdown performance review. Include:\n"
-                            f"1. Overall score 1-10 with a bold single-sentence justification.\n"
-                            f"2. Core Strengths (bullet points on technical depth).\n"
-                            f"3. Key Technical Gaps / Flaws (where they lacked depth or gave vague answers).\n"
-                            f"4. Concrete Actionable Advice for improvement."
+                            f"1. **Overall Score** (1-10) with a bold single-sentence justification.\n"
+                            f"2. **Core Strengths** — bullet points on demonstrated technical depth.\n"
+                            f"3. **Key Technical Gaps** — where the candidate lacked depth or gave vague answers.\n"
+                            f"4. **Concrete Actionable Advice** — specific next steps to improve.\n"
+                            f"5. **📈 Growth Trajectory** — compare to historical logs (if provided)."
                             f"{tech_focus}"
+                            f"{history_clause}"
                         )
 
                         st.session_state.evaluation_report = generate_with_fallback(
@@ -928,3 +1050,36 @@ with tab2:
                     st.error(f"Database Write Error: {msg}")
             else:
                 st.error("Please make sure Company Name and Role Title are not blank.")
+
+    # ── CRM Database Viewer ──────────────────────────────────────────────────
+    st.write("---")
+    st.subheader("📊 Interview History — Live CRM View")
+    st.caption("All entries pulled directly from Neon DB on every page load.")
+
+    logs = fetch_all_logs()
+    if logs:
+        # Rename columns for display
+        display_rows = [
+            {
+                "ID": r["id"],
+                "Company": r["company_name"],
+                "Role": r["role_name"],
+                "Date": str(r["interview_date"]),
+                "Self Score": r["self_evaluation"],
+                "Logged At": str(r["created_at"])[:16] if r["created_at"] else "",
+            }
+            for r in logs
+        ]
+        st.dataframe(display_rows, use_container_width=True, hide_index=True)
+        avg = sum(r["Self Score"] for r in display_rows) / len(display_rows)
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total Interviews Logged", len(display_rows))
+        col2.metric("Avg Self-Score", f"{avg:.1f} / 10")
+        col3.metric(
+            "Latest Entry",
+            display_rows[0]["Company"] if display_rows else "—",
+        )
+    else:
+        st.info(
+            "No interview logs yet. Fill the form above and click **Save** to start tracking."
+        )
