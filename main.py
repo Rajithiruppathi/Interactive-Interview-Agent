@@ -16,7 +16,8 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-st.markdown("""
+st.markdown(
+    """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
@@ -37,10 +38,24 @@ label, input, textarea, button, select {
     color: #e2e8f0;
 }
 
-/* ── Hide default Streamlit chrome (keep sidebar toggle) ─── */
-#MainMenu, header[data-testid="stHeader"], footer { display: none !important; }
-[data-testid="stSidebarCollapseButton"],
-[data-testid="collapsedControl"] { display: flex !important; }
+/* ── Hide Streamlit chrome without destroying sidebar toggle ─ */
+#MainMenu, footer { display: none !important; }
+/* Collapse header to zero-height (keeps DOM intact so sidebar toggle works) */
+header[data-testid="stHeader"] {
+    height: 0 !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+}
+/* Force sidebar to always be visible — never slide off-screen */
+section[data-testid="stSidebar"],
+[data-testid="stSidebar"] {
+    display: block !important;
+    visibility: visible !important;
+    transform: translateX(0px) !important;
+    min-width: 16rem !important;
+    width: 16rem !important;
+}
 
 /* ── Main content column ─────────────────────────────────── */
 .block-container {
@@ -389,16 +404,19 @@ hr { border-color: #1e293b !important; }
     border-top-color: #3b82f6 !important;
 }
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
-st.markdown("""
+st.markdown(
+    """
 <div class="hero-wrap">
     <span class="hero-eyebrow">AI-Powered Interview Intelligence</span>
     <h1 class="hero-headline">Ace Every Interview.<br>Track Every Outcome.</h1>
-    <p class="hero-sub">
+    <p class="hero-sub"><center>
         Practice with a real-time AI interviewer that adapts to your tech stack,
         then log and analyse your actual interview experiences — all in one place.
-    </p>
+    </center></p>
     <div class="metrics-grid">
         <div class="metric-card">
             <div class="metric-number">50+</div>
@@ -414,12 +432,15 @@ st.markdown("""
         </div>
     </div>
 </div>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 
 # ---------------------------------------------------------------------------
 # DB helpers — connection-per-operation pattern (no cached connections)
 # ---------------------------------------------------------------------------
+
 
 def get_db_conn():
     db_url = os.getenv("DATABASE_URL")
@@ -480,7 +501,7 @@ def fetch_candidate_profile() -> dict:
         if row and (row["target_roles"] or row["tech_stack"]):
             return {
                 "target_roles": row["target_roles"] or [],
-                "tech_stack":   row["tech_stack"]   or [],
+                "tech_stack": row["tech_stack"] or [],
             }
         return defaults
     except Exception:
@@ -508,7 +529,13 @@ def save_interview_log(
                     (company_name, role_name, interview_date, questions_asked, self_evaluation)
                 VALUES (%s, %s, %s, %s, %s)
                 """,
-                (company_name, role_name, interview_date, questions_asked, self_evaluation),
+                (
+                    company_name,
+                    role_name,
+                    interview_date,
+                    questions_asked,
+                    self_evaluation,
+                ),
             )
         conn.commit()
         return True, f"Saved {role_name} at {company_name} to Neon DB."
@@ -533,7 +560,7 @@ def _test_no_connection_leak() -> bool:
             )
             before = cur.fetchone()[0]
 
-        fetch_candidate_profile()   # function under test
+        fetch_candidate_profile()  # function under test
 
         with conn.cursor() as cur:
             cur.execute(
@@ -542,9 +569,9 @@ def _test_no_connection_leak() -> bool:
             after = cur.fetchone()[0]
 
         # after should equal before (fetch opened and closed its own connection)
-        return after <= before + 1   # +1 tolerance for the test connection itself
+        return after <= before + 1  # +1 tolerance for the test connection itself
     except Exception:
-        return True   # can't test without DB — assume pass
+        return True  # can't test without DB — assume pass
     finally:
         if conn is not None:
             conn.close()
@@ -560,6 +587,7 @@ db_online = init_db()
 # ---------------------------------------------------------------------------
 # LLM clients
 # ---------------------------------------------------------------------------
+
 
 @st.cache_resource
 def get_gemini_client():
@@ -580,15 +608,26 @@ except Exception:
 
 def _is_rate_limit(err: Exception) -> bool:
     msg = str(err).upper()
-    return any(t in msg for t in (
-        "429", "503", "RESOURCE_EXHAUSTED", "QUOTA", "RATE_LIMIT", "UNAVAILABLE", "HIGH DEMAND"
-    ))
+    return any(
+        t in msg
+        for t in (
+            "429",
+            "503",
+            "RESOURCE_EXHAUSTED",
+            "QUOTA",
+            "RATE_LIMIT",
+            "UNAVAILABLE",
+            "HIGH DEMAND",
+        )
+    )
 
 
 def generate_with_fallback(contents: str, system_instruction: str = "") -> str:
     if gemini_client is not None:
         try:
-            cfg = {"system_instruction": system_instruction} if system_instruction else {}
+            cfg = (
+                {"system_instruction": system_instruction} if system_instruction else {}
+            )
             resp = gemini_client.models.generate_content(
                 model="gemini-2.5-flash",
                 contents=contents,
@@ -632,12 +671,17 @@ if "candidate_profile" not in st.session_state:
 st.sidebar.header("🎯 Target Interview Settings")
 
 role_options = [
-    "AI Engineer", "Generative AI Developer",
-    "Python Backend Developer", "Data Scientist", "Other / Custom Role",
+    "AI Engineer",
+    "Generative AI Developer",
+    "Python Backend Developer",
+    "Data Scientist",
+    "Other / Custom Role",
 ]
 role_choice = st.sidebar.selectbox("Choose Target Role:", role_options)
 selected_role = (
-    st.sidebar.text_input("Type your specific role/stream here:", placeholder="e.g., Frontend Developer")
+    st.sidebar.text_input(
+        "Type your specific role/stream here:", placeholder="e.g., Frontend Developer"
+    )
     if role_choice == "Other / Custom Role"
     else role_choice
 )
@@ -645,7 +689,9 @@ selected_role = (
 company_options = ["Google", "Microsoft", "Infosys", "Other / Custom Company"]
 company_choice = st.sidebar.selectbox("Choose Target Company:", company_options)
 selected_company = (
-    st.sidebar.text_input("Type the company name here:", placeholder="e.g., Tata, Microsoft")
+    st.sidebar.text_input(
+        "Type the company name here:", placeholder="e.g., Tata, Microsoft"
+    )
     if company_choice == "Other / Custom Company"
     else company_choice
 )
@@ -661,8 +707,7 @@ if profile["tech_stack"] or profile["target_roles"]:
     cards_html = ""
     if profile["tech_stack"]:
         tags = "".join(
-            f'<span class="tag tag-tech">{t}</span>'
-            for t in profile["tech_stack"]
+            f'<span class="tag tag-tech">{t}</span>' for t in profile["tech_stack"]
         )
         cards_html += f"""
         <div class="profile-card tech-card">
@@ -671,8 +716,7 @@ if profile["tech_stack"] or profile["target_roles"]:
         </div>"""
     if profile["target_roles"]:
         tags = "".join(
-            f'<span class="tag tag-role">{r}</span>'
-            for r in profile["target_roles"]
+            f'<span class="tag tag-role">{r}</span>' for r in profile["target_roles"]
         )
         cards_html += f"""
         <div class="profile-card role-card">
@@ -725,7 +769,9 @@ with tab1:
 
     # VIEW C — Active chat
     else:
-        st.success(f"📟 Active Session: Interviewing for {selected_role} at {selected_company}")
+        st.success(
+            f"📟 Active Session: Interviewing for {selected_role} at {selected_company}"
+        )
 
         for msg in st.session_state.messages:
             with st.chat_message(msg["role"]):
@@ -747,9 +793,9 @@ with tab1:
 
                         # --- Company culture profile ---
                         company_profiles = {
-                            "Google":    "Focus heavily on system scale, algorithmic efficiency, distributed infrastructure, and strict architectural trade-offs.",
+                            "Google": "Focus heavily on system scale, algorithmic efficiency, distributed infrastructure, and strict architectural trade-offs.",
                             "Microsoft": "Focus on enterprise scalability, Azure cloud integrations, software design patterns, and robust maintainability.",
-                            "Infosys":   "Focus on core foundational concepts, structured lifecycle delivery, agile methodologies, and confident hands-on problem-solving.",
+                            "Infosys": "Focus on core foundational concepts, structured lifecycle delivery, agile methodologies, and confident hands-on problem-solving.",
                         }
                         selected_profile = company_profiles.get(
                             selected_company,
@@ -757,8 +803,8 @@ with tab1:
                         )
 
                         # --- DB-driven tech stack clause ---
-                        db_tech   = profile["tech_stack"]
-                        db_roles  = profile["target_roles"]
+                        db_tech = profile["tech_stack"]
+                        db_roles = profile["target_roles"]
 
                         tech_stack_clause = ""
                         if db_tech:
@@ -773,9 +819,7 @@ with tab1:
 
                         role_clause = ""
                         if db_roles:
-                            role_clause = (
-                                f" Their profile also indicates experience targeting: {', '.join(db_roles)}."
-                            )
+                            role_clause = f" Their profile also indicates experience targeting: {', '.join(db_roles)}."
 
                         # --- Final dynamic system instruction ---
                         system_instruction = (
@@ -806,9 +850,13 @@ with tab1:
         st.write("---")
         if st.button("End Interview & Generate Report"):
             if len(st.session_state.messages) <= 1:
-                st.warning("The session is too short to evaluate. Please converse with the AI first!")
+                st.warning(
+                    "The session is too short to evaluate. Please converse with the AI first!"
+                )
             else:
-                with st.spinner("Analyzing conversation history and grading performance..."):
+                with st.spinner(
+                    "Analyzing conversation history and grading performance..."
+                ):
                     try:
                         full_transcript = "".join(
                             f"{m['role'].upper()}: {m['content']}\n\n"
@@ -818,7 +866,8 @@ with tab1:
                         tech_focus = (
                             f"\n\nPay special attention to how well the candidate demonstrated depth "
                             f"in their stated tech stack: {', '.join(profile['tech_stack'])}."
-                            if profile["tech_stack"] else ""
+                            if profile["tech_stack"]
+                            else ""
                         )
 
                         eval_prompt = (
@@ -833,7 +882,9 @@ with tab1:
                             f"{tech_focus}"
                         )
 
-                        st.session_state.evaluation_report = generate_with_fallback(eval_prompt)
+                        st.session_state.evaluation_report = generate_with_fallback(
+                            eval_prompt
+                        )
                         st.session_state.show_evaluation = True
                         st.rerun()
 
@@ -847,19 +898,29 @@ with tab1:
 
 with tab2:
     st.header("Record an Interview Experience")
-    st.write("Attended a real interview? Save the details below to keep a permanent history.")
+    st.write(
+        "Attended a real interview? Save the details below to keep a permanent history."
+    )
 
     with st.form("interview_form"):
-        company_name    = st.text_input("Company Name", value=selected_company or "")
-        role_name       = st.text_input("Role Title", value=selected_role or "")
-        interview_date  = st.date_input("Interview Date", datetime.date.today())
-        questions_asked = st.text_area("What technical/round questions did they ask you?")
-        self_evaluation = st.slider("How well do you think you performed? (1-10)", 1, 10, 5)
+        company_name = st.text_input("Company Name", value=selected_company or "")
+        role_name = st.text_input("Role Title", value=selected_role or "")
+        interview_date = st.date_input("Interview Date", datetime.date.today())
+        questions_asked = st.text_area(
+            "What technical/round questions did they ask you?"
+        )
+        self_evaluation = st.slider(
+            "How well do you think you performed? (1-10)", 1, 10, 5
+        )
 
         if st.form_submit_button("Save to Dashboard Database"):
             if company_name and role_name:
                 ok, msg = save_interview_log(
-                    company_name, role_name, interview_date, questions_asked, self_evaluation
+                    company_name,
+                    role_name,
+                    interview_date,
+                    questions_asked,
+                    self_evaluation,
                 )
                 if ok:
                     st.success(f"🚀 {msg}")
