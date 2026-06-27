@@ -14,62 +14,232 @@ st.write("Select your target role or log your real-world interview experiences."
 
 st.markdown("""
 <style>
-/* ── Main body ──────────────────────────────────────────── */
-.block-container {
-    padding-top: 1.8rem;
-    padding-bottom: 2rem;
-    max-width: 860px;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* ── Global typography & base ───────────────────────────── */
+html, body, [class*="css"], .stMarkdown, .stText, p, span, div {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+    -webkit-font-smoothing: antialiased;
 }
 
-/* ── Tab strip ──────────────────────────────────────────── */
-.stTabs [data-baseweb="tab-list"] {
-    gap: 6px;
-    border-bottom: 2px solid #e2e8f0;
-    padding-bottom: 0;
+/* ── App background — deep slate ────────────────────────── */
+.stApp {
+    background: #0f1117;
+    color: #e2e8f0;
 }
-.stTabs [data-baseweb="tab"] {
-    padding: 8px 22px;
-    border-radius: 8px 8px 0 0;
-    font-weight: 500;
-    font-size: 14px;
-    color: #475569;
+
+/* ── Main content column ─────────────────────────────────── */
+.block-container {
+    padding-top: 2rem;
+    padding-bottom: 2.5rem;
+    max-width: 880px;
     background: transparent;
 }
-.stTabs [aria-selected="true"] {
-    background-color: #eef2ff;
-    color: #3730a3;
-    border-bottom: 3px solid #4f46e5;
+
+/* ── Page title ─────────────────────────────────────────── */
+h1 {
+    font-size: 1.75rem !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.5px;
+    background: linear-gradient(90deg, #60a5fa, #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 0.2rem !important;
+}
+.stApp > div > div > div > div > p {
+    color: #64748b;
+    font-size: 14px;
 }
 
-/* ── Sidebar profile cards ──────────────────────────────── */
-.profile-card {
-    border-radius: 10px;
-    padding: 12px 14px;
-    margin: 8px 0;
-    border-left: 4px solid;
+/* ── Sidebar ─────────────────────────────────────────────── */
+[data-testid="stSidebar"] {
+    background: #161b27 !important;
+    border-right: 1px solid #1e293b;
 }
-.tech-card  { background: #eff6ff; border-left-color: #2563eb; }
-.role-card  { background: #f5f3ff; border-left-color: #7c3aed; }
+[data-testid="stSidebar"] * {
+    color: #cbd5e1 !important;
+}
+[data-testid="stSidebar"] h1,
+[data-testid="stSidebar"] h2,
+[data-testid="stSidebar"] h3 {
+    color: #f1f5f9 !important;
+    font-weight: 600 !important;
+}
+[data-testid="stSidebar"] .stSelectbox label,
+[data-testid="stSidebar"] .stTextInput label {
+    color: #94a3b8 !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* ── Input boxes & selects — rounded, dark ───────────────── */
+[data-testid="stSidebar"] [data-baseweb="select"] > div,
+[data-testid="stSidebar"] [data-baseweb="input"] > div {
+    background: #1e293b !important;
+    border: 1px solid #334155 !important;
+    border-radius: 10px !important;
+    color: #e2e8f0 !important;
+}
+.stTextInput > div > div,
+.stTextArea > div > div,
+[data-baseweb="input"],
+[data-baseweb="textarea"] {
+    background: #1e293b !important;
+    border: 1px solid #334155 !important;
+    border-radius: 10px !important;
+    color: #e2e8f0 !important;
+}
+.stTextInput > div > div:focus-within,
+.stTextArea > div > div:focus-within,
+[data-baseweb="input"]:focus-within {
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.15) !important;
+}
+
+/* ── Chat input bar ──────────────────────────────────────── */
+[data-testid="stChatInput"] {
+    background: #1e293b !important;
+    border: 1px solid #334155 !important;
+    border-radius: 14px !important;
+}
+[data-testid="stChatInput"]:focus-within {
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.15) !important;
+}
+[data-testid="stChatInput"] textarea {
+    color: #e2e8f0 !important;
+    background: transparent !important;
+}
+
+/* ── Chat bubbles — assistant ────────────────────────────── */
+[data-testid="stChatMessage"]:has([data-testid="chatAvatarIcon-assistant"]) {
+    background: linear-gradient(135deg, #1e2d45 0%, #162032 100%) !important;
+    border: 1px solid #1e3a5f;
+    border-radius: 16px !important;
+    padding: 16px 20px !important;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 12px rgba(59,130,246,0.08);
+}
+
+/* ── Chat bubbles — user ─────────────────────────────────── */
+[data-testid="stChatMessage"]:has([data-testid="chatAvatarIcon-user"]) {
+    background: linear-gradient(135deg, #1a1f2e 0%, #0f172a 100%) !important;
+    border: 1px solid #2d3748;
+    border-radius: 16px !important;
+    padding: 16px 20px !important;
+    margin-bottom: 12px;
+}
+
+/* ── Buttons — primary ───────────────────────────────────── */
+.stButton > button {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 10px !important;
+    padding: 10px 22px !important;
+    font-weight: 600 !important;
+    font-size: 14px !important;
+    letter-spacing: 0.2px;
+    transition: all 0.2s ease !important;
+    box-shadow: 0 2px 8px rgba(37,99,235,0.35) !important;
+}
+.stButton > button:hover {
+    background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+    box-shadow: 0 4px 16px rgba(59,130,246,0.45) !important;
+    transform: translateY(-1px);
+}
+
+/* ── Tabs ─────────────────────────────────────────────────── */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 4px;
+    background: #161b27;
+    border-radius: 12px;
+    padding: 4px;
+    border: none !important;
+}
+.stTabs [data-baseweb="tab"] {
+    padding: 8px 24px;
+    border-radius: 9px;
+    font-weight: 500;
+    font-size: 14px;
+    color: #64748b !important;
+    background: transparent !important;
+    border: none !important;
+}
+.stTabs [aria-selected="true"] {
+    background: linear-gradient(135deg, #1e3a5f, #1e2d45) !important;
+    color: #60a5fa !important;
+    box-shadow: 0 2px 8px rgba(59,130,246,0.2);
+}
+
+/* ── Alert / info / success banners ─────────────────────── */
+[data-testid="stAlert"] {
+    border-radius: 10px !important;
+    border: none !important;
+}
+.stSuccess { background: rgba(16,185,129,0.12) !important; color: #6ee7b7 !important; }
+.stInfo    { background: rgba(59,130,246,0.12) !important; color: #93c5fd !important; }
+.stWarning { background: rgba(245,158,11,0.12) !important; color: #fcd34d !important; }
+.stError   { background: rgba(239,68,68,0.12)  !important; color: #fca5a5 !important; }
+
+/* ── Sidebar profile cards ───────────────────────────────── */
+.profile-card {
+    border-radius: 12px;
+    padding: 13px 15px;
+    margin: 8px 0;
+    border-left: 3px solid;
+}
+.tech-card { background: rgba(37,99,235,0.12); border-left-color: #3b82f6; }
+.role-card { background: rgba(124,58,237,0.12); border-left-color: #8b5cf6; }
 
 .card-label {
     font-size: 10px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.7px;
+    letter-spacing: 0.8px;
     color: #64748b;
-    margin-bottom: 8px;
+    margin-bottom: 9px;
 }
 .tag-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .tag {
     display: inline-block;
-    padding: 3px 10px;
+    padding: 3px 11px;
     border-radius: 20px;
     font-size: 12px;
     font-weight: 500;
     white-space: nowrap;
 }
-.tag-tech { background: #dbeafe; color: #1d4ed8; }
-.tag-role { background: #ede9fe; color: #5b21b6; }
+.tag-tech { background: rgba(59,130,246,0.2); color: #93c5fd; }
+.tag-role { background: rgba(139,92,246,0.2); color: #c4b5fd; }
+
+/* ── Selectbox dropdown menu ─────────────────────────────── */
+[data-baseweb="popover"] {
+    background: #1e293b !important;
+    border: 1px solid #334155 !important;
+    border-radius: 10px !important;
+}
+[data-baseweb="menu"] {
+    background: #1e293b !important;
+}
+[data-baseweb="menu"] li:hover {
+    background: #2d3f5e !important;
+}
+
+/* ── Slider ──────────────────────────────────────────────── */
+[data-testid="stSlider"] [data-baseweb="slider"] [role="slider"] {
+    background: #3b82f6 !important;
+    border-color: #3b82f6 !important;
+}
+
+/* ── Divider ─────────────────────────────────────────────── */
+hr { border-color: #1e293b !important; }
+
+/* ── Spinner ─────────────────────────────────────────────── */
+[data-testid="stSpinner"] > div {
+    border-top-color: #3b82f6 !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
