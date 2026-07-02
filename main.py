@@ -49,7 +49,7 @@ header[data-testid="stHeader"] {
     padding: 0 !important;
     overflow: hidden !important;
 }
-/* Force sidebar to always be visible — never slide off-screen */
+/* Force sidebar visible and fully interactive */
 section[data-testid="stSidebar"],
 [data-testid="stSidebar"] {
     display: block !important;
@@ -57,6 +57,24 @@ section[data-testid="stSidebar"],
     transform: translateX(0px) !important;
     min-width: 16rem !important;
     width: 16rem !important;
+    z-index: 999 !important;
+    position: relative !important;
+    pointer-events: all !important;
+}
+div[data-testid="stSidebarUserContent"],
+div[data-testid="stSidebarUserContent"] * {
+    pointer-events: all !important;
+}
+/* Kill the invisible backdrop Streamlit injects when sidebar state is
+   "collapsed" — it floats over the sidebar and swallows all click events */
+[data-testid="stSidebarBackdrop"] {
+    display: none !important;
+    pointer-events: none !important;
+}
+/* Ensure selectbox popovers float above main content column */
+[data-baseweb="popover"],
+[data-baseweb="popover"] > div {
+    z-index: 99999 !important;
 }
 
 /* ── Main content column ─────────────────────────────────── */
@@ -309,6 +327,33 @@ div[data-testid="stChatInput"] textarea,
     border-radius: 16px !important;
     padding: 16px 20px !important;
     margin-bottom: 12px;
+}
+
+/* ── Chat message text — explicit bright white ───────────── */
+/* Cascade breaks inside dark gradient containers; override every layer */
+[data-testid="stChatMessage"] p,
+[data-testid="stChatMessage"] span:not([class*="material"]),
+[data-testid="stChatMessage"] .stMarkdown p,
+[data-testid="stChatMessage"] .stMarkdown span:not([class*="material"]),
+[data-testid="stChatMessage"] .stMarkdown li,
+[data-testid="stChatMessage"] .stMarkdown h1,
+[data-testid="stChatMessage"] .stMarkdown h2,
+[data-testid="stChatMessage"] .stMarkdown h3,
+[data-testid="stChatMessage"] .element-container p,
+[data-testid="stChatMessage"] div.stMarkdown {
+    color: #e8edf5 !important;
+    -webkit-text-fill-color: #e8edf5 !important;
+}
+/* Strong/bold/code inside chat messages */
+[data-testid="stChatMessage"] strong,
+[data-testid="stChatMessage"] b {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+}
+[data-testid="stChatMessage"] code {
+    color: #7dd3fc !important;
+    -webkit-text-fill-color: #7dd3fc !important;
+    background: rgba(125,211,252,0.08) !important;
 }
 
 /* ── Buttons — primary ───────────────────────────────────── */
@@ -942,8 +987,8 @@ with tab1:
                 '<div class="voice-mode-wrap">'
                 '<span style="font-size:22px">🎙️</span>'
                 '<span class="voice-status">Click <strong>Start</strong>, speak your answer, then click <strong>Stop</strong>. '
-                'Your answer will be transcribed and sent automatically.</span>'
-                '</div>',
+                "Your answer will be transcribed and sent automatically.</span>"
+                "</div>",
                 unsafe_allow_html=True,
             )
             audio = mic_recorder(
@@ -958,7 +1003,7 @@ with tab1:
                 with st.spinner("Transcribing audio via Whisper..."):
                     try:
                         user_input = transcribe_audio(audio["bytes"])
-                        st.info(f"📝 Transcribed: *\"{user_input}\"*")
+                        st.info(f'📝 Transcribed: *"{user_input}"*')
                     except Exception as transcribe_err:
                         st.error(f"Transcription failed: {transcribe_err}")
 
