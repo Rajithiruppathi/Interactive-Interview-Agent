@@ -21,23 +21,58 @@ st.set_page_config(
 st.markdown(
     """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
-/* ── Global typography & base ───────────────────────────── */
+/* ════════════════════════════════════════════════════════════
+   DESIGN SYSTEM — tokens, reset, layout
+   Palette: Google Gemini dark × Linear × GitHub dark
+   ════════════════════════════════════════════════════════════ */
+:root {
+    --bg:          #0c0c11;
+    --surface-1:   #12121a;
+    --surface-2:   #1a1a25;
+    --surface-3:   #21212f;
+    --border:      #26263a;
+    --border-2:    #2e2e44;
+    --text-1:      #eeeef5;
+    --text-2:      #9898b4;
+    --text-3:      #55556a;
+    --blue:        #4f7ef7;
+    --blue-soft:   #8ab4f8;
+    --blue-dim:    rgba(79,126,247,0.10);
+    --blue-glow:   rgba(79,126,247,0.22);
+    --purple:      #9b70f5;
+    --purple-soft: #c4b5fd;
+    --purple-dim:  rgba(155,112,245,0.10);
+    --green:       #2dd4bf;
+    --amber:       #fbbf24;
+    --red:         #f87171;
+    --r-sm:  8px;
+    --r-md: 12px;
+    --r-lg: 16px;
+    --r-xl: 22px;
+    --sh-sm: 0 1px 4px rgba(0,0,0,0.5);
+    --sh-md: 0 4px 20px rgba(0,0,0,0.55);
+    --sh-lg: 0 8px 40px rgba(0,0,0,0.65);
+}
+
+/* ── Global reset & typography ─────────────────────────── */
 html, body, [class*="css"], .stMarkdown, .stText, p,
 label, input, textarea, button, select {
-    font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif !important;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
-/* Preserve Material Icons/Symbols font for Streamlit avatars & icons */
-[class*="material-icons"], [class*="material-symbols"], .stChatMessage [data-testid="chatAvatarIcon-assistant"] * {
+/* Preserve Material Icons font for Streamlit avatars */
+[class*="material-icons"], [class*="material-symbols"],
+.stChatMessage [data-testid="chatAvatarIcon-assistant"] * {
     font-family: 'Material Symbols Rounded', 'Material Icons' !important;
 }
 
-/* ── App background — deep slate ────────────────────────── */
+/* ── App shell ─────────────────────────────────────────── */
 .stApp {
-    background: #0f1117;
-    color: #e2e8f0;
+    background: var(--bg) !important;
+    color: var(--text-1) !important;
 }
 
 /* ── Hide Streamlit chrome without destroying sidebar toggle ─ */
@@ -79,258 +114,255 @@ div[data-testid="stSidebarUserContent"] * {
 
 /* ── Main content column ─────────────────────────────────── */
 .block-container {
-    padding-top: 0rem !important;
-    padding-bottom: 2.5rem;
-    max-width: 860px;
+    padding-top: 0 !important;
+    padding-bottom: 3rem;
+    max-width: 880px;
     margin: 0 auto !important;
     background: transparent;
 }
 
+/* ── Sidebar overrides ───────────────────────────────────── */
+[data-testid="stSidebar"] {
+    background: var(--surface-1) !important;
+    border-right: 1px solid var(--border) !important;
+}
+[data-testid="stSidebar"] * { color: var(--text-2) !important; }
+[data-testid="stSidebar"] > div:first-child { padding: 0 0.85rem 1rem 0.85rem !important; }
+div[data-testid="stSidebarUserContent"] { padding-top: 1.2rem !important; }
+[data-testid="stSidebar"] h1,
+[data-testid="stSidebar"] h2,
+[data-testid="stSidebar"] h3 {
+    color: var(--text-1) !important;
+    font-weight: 600 !important;
+    font-size: 0.85rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.8px !important;
+    margin-top: 0 !important;
+    margin-bottom: 1rem !important;
+    padding-bottom: 0.5rem !important;
+    border-bottom: 1px solid var(--border) !important;
+}
+[data-testid="stSidebar"] .stSelectbox label,
+[data-testid="stSidebar"] .stTextInput label {
+    color: var(--text-3) !important;
+    font-size: 10.5px !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.7px !important;
+}
+[data-testid="stSidebar"] .stSelectbox { margin-bottom: 1rem !important; }
+[data-testid="stSidebar"] .stTextInput  { margin-bottom: 0.9rem !important; }
+[data-testid="stSidebar"] [data-testid="stAlert"],
+[data-testid="stSidebar"] .stSuccess,
+[data-testid="stSidebar"] .stWarning {
+    margin-top: 1rem !important;
+    margin-bottom: 1.1rem !important;
+    border-radius: var(--r-md) !important;
+}
+
 /* ── Hero section ────────────────────────────────────────── */
 .hero-wrap {
-    padding: 3.2rem 0 2.4rem 0;
+    position: relative;
+    padding: 4.2rem 0 3rem 0;
     text-align: center;
+    overflow: hidden;
+}
+/* Ambient radial glow — no extra HTML element needed */
+.hero-wrap::before {
+    content: '';
+    position: absolute;
+    top: -60px; left: 50%; transform: translateX(-50%);
+    width: 700px; height: 380px;
+    background: radial-gradient(ellipse at 50% 40%,
+        rgba(79,126,247,0.13) 0%,
+        rgba(155,112,245,0.07) 45%,
+        transparent 70%);
+    pointer-events: none;
+    z-index: 0;
 }
 .hero-eyebrow {
-    display: inline-block;
+    position: relative; z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 1.6px;
+    font-weight: 600;
+    letter-spacing: 1.4px;
     text-transform: uppercase;
-    color: #60a5fa;
-    background: rgba(59,130,246,0.1);
-    border: 1px solid rgba(59,130,246,0.25);
-    border-radius: 20px;
-    padding: 4px 14px;
-    margin-bottom: 20px;
+    color: var(--blue-soft);
+    background: var(--blue-dim);
+    border: 1px solid rgba(79,126,247,0.28);
+    border-radius: 40px;
+    padding: 5px 16px;
+    margin-bottom: 22px;
 }
 .hero-headline {
-    font-size: 2.75rem;
+    position: relative; z-index: 1;
+    font-size: 3.5rem;
     font-weight: 800;
-    letter-spacing: -1px;
-    line-height: 1.15;
-    margin: 0 0 16px 0;
-    background: linear-gradient(135deg, #f1f5f9 30%, #60a5fa 70%, #a78bfa 100%);
+    letter-spacing: -2px;
+    line-height: 1.08;
+    margin: 0 0 18px 0;
+    background: linear-gradient(140deg, #ffffff 10%, #c7d8ff 45%, var(--purple-soft) 85%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 .hero-sub {
+    position: relative; z-index: 1;
     font-size: 1.05rem;
-    color: #64748b;
-    max-width: 560px;
-    margin: 0 auto 36px auto;
-    line-height: 1.7;
+    color: var(--text-2);
+    max-width: 500px;
+    margin: 0 auto 44px auto;
+    line-height: 1.78;
     font-weight: 400;
 }
 .metrics-grid {
+    position: relative; z-index: 1;
     display: flex;
     justify-content: center;
-    gap: 16px;
+    gap: 12px;
     flex-wrap: wrap;
-    margin-top: 8px;
 }
 .metric-card {
-    background: linear-gradient(135deg, #161b27, #1a2035);
-    border: 1px solid #1e293b;
-    border-radius: 14px;
-    padding: 20px 28px;
-    min-width: 160px;
+    background: var(--surface-2);
+    border: 1px solid var(--border-2);
+    border-radius: var(--r-lg);
+    padding: 20px 30px;
+    min-width: 148px;
     text-align: center;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    box-shadow: var(--sh-md);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    cursor: default;
+}
+.metric-card:hover {
+    border-color: rgba(79,126,247,0.45);
+    box-shadow: 0 6px 28px rgba(79,126,247,0.14);
+    transform: translateY(-2px);
 }
 .metric-number {
-    font-size: 1.9rem;
+    font-size: 2.1rem;
     font-weight: 800;
-    background: linear-gradient(90deg, #60a5fa, #a78bfa);
+    letter-spacing: -1.5px;
+    background: linear-gradient(135deg, var(--blue), var(--purple));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    background-clip: text;
     line-height: 1;
-    margin-bottom: 6px;
+    margin-bottom: 7px;
 }
 .metric-label {
-    font-size: 11.5px;
-    color: #64748b;
-    font-weight: 500;
+    font-size: 10.5px;
+    color: var(--text-3);
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.6px;
+    letter-spacing: 0.9px;
 }
 
-/* ── Form (tab 2) — high-contrast text ──────────────────── */
+/* ── Form fields ─────────────────────────────────────────── */
 [data-testid="stForm"] label,
 [data-testid="stForm"] .stTextInput label,
 [data-testid="stForm"] .stTextArea label,
 [data-testid="stForm"] .stDateInput label,
 [data-testid="stForm"] .stSlider label,
-[data-testid="stForm"] p {
-    color: #e2e8f0 !important;
-    font-weight: 500 !important;
-}
+[data-testid="stForm"] p { color: var(--text-1) !important; font-weight: 500 !important; }
 [data-testid="stForm"] input,
 [data-testid="stForm"] textarea {
-    color: #f1f5f9 !important;
-    background: #1e293b !important;
-    caret-color: #60a5fa !important;
+    color: var(--text-1) !important;
+    background: var(--surface-2) !important;
+    caret-color: var(--blue) !important;
 }
 [data-testid="stForm"] input::placeholder,
-[data-testid="stForm"] textarea::placeholder {
-    color: #475569 !important;
-}
+[data-testid="stForm"] textarea::placeholder { color: var(--text-3) !important; }
 [data-testid="stForm"] [data-baseweb="slider"] [data-testid="stSliderTickBarMin"],
 [data-testid="stForm"] [data-baseweb="slider"] [data-testid="stSliderTickBarMax"] {
-    color: #94a3b8 !important;
+    color: var(--text-2) !important;
 }
 
-/* ── Sidebar ─────────────────────────────────────────────── */
-[data-testid="stSidebar"] {
-    background: #161b27 !important;
-    border-right: 1px solid #1e293b;
-}
-[data-testid="stSidebar"] * {
-    color: #cbd5e1 !important;
-}
-[data-testid="stSidebar"] h1,
-[data-testid="stSidebar"] h2,
-[data-testid="stSidebar"] h3 {
-    color: #f1f5f9 !important;
-    font-weight: 600 !important;
-}
-[data-testid="stSidebar"] .stSelectbox label,
-[data-testid="stSidebar"] .stTextInput label {
-    color: #94a3b8 !important;
-    font-size: 12px !important;
-    font-weight: 500 !important;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-/* ── Input boxes & selects — rounded, dark ───────────────── */
+/* ── Input & select styling ──────────────────────────────── */
 [data-testid="stSidebar"] [data-baseweb="select"] > div,
 [data-testid="stSidebar"] [data-baseweb="input"] > div {
-    background: #1e293b !important;
-    border: 1px solid #334155 !important;
-    border-radius: 10px !important;
-    color: #ffffff !important;
+    background: var(--surface-2) !important;
+    border: 1px solid var(--border-2) !important;
+    border-radius: var(--r-sm) !important;
+    color: var(--text-1) !important;
 }
-/* Force selected value text inside selectbox to bright white */
 [data-baseweb="select"] span,
 [data-baseweb="select"] > div > div,
 [data-baseweb="select"] > div > div > div,
-[data-baseweb="select"] [data-testid="stSelectboxVirtualDropdown"],
 [data-testid="stSidebar"] [data-baseweb="select"] *:not(svg):not(path) {
-    color: #ffffff !important;
+    color: var(--text-1) !important;
 }
 .stTextInput > div > div,
 .stTextArea > div > div,
 [data-baseweb="input"],
 [data-baseweb="textarea"] {
-    background: #1e293b !important;
-    border: 1px solid #334155 !important;
-    border-radius: 10px !important;
-    color: #e2e8f0 !important;
+    background: var(--surface-2) !important;
+    border: 1px solid var(--border-2) !important;
+    border-radius: var(--r-sm) !important;
+    color: var(--text-1) !important;
 }
 .stTextInput > div > div:focus-within,
 .stTextArea > div > div:focus-within,
 [data-baseweb="input"]:focus-within {
-    border-color: #3b82f6 !important;
-    box-shadow: 0 0 0 3px rgba(59,130,246,0.15) !important;
+    border-color: var(--blue) !important;
+    box-shadow: 0 0 0 3px var(--blue-glow) !important;
 }
 
-/* ── Sidebar structural spacing ──────────────────────────── */
-/* Outer wrapper — strip top padding so stSidebarUserContent owns it */
-[data-testid="stSidebar"] > div:first-child {
-    padding: 0 0.9rem 1rem 0.9rem !important;
-}
-/* Inner user-content container — single source of top spacing */
-div[data-testid="stSidebarUserContent"] {
-    padding-top: 1rem !important;
-}
-[data-testid="stSidebar"] .stSelectbox {
-    margin-bottom: 1.2rem !important;
-}
-[data-testid="stSidebar"] .stTextInput {
-    margin-bottom: 1rem !important;
-}
-[data-testid="stSidebar"] [data-testid="stAlert"],
-[data-testid="stSidebar"] .stSuccess,
-[data-testid="stSidebar"] .stWarning {
-    margin-top: 1.2rem !important;
-    margin-bottom: 1.4rem !important;
-}
-[data-testid="stSidebar"] h1,
-[data-testid="stSidebar"] h2,
-[data-testid="stSidebar"] h3 {
-    margin-top: 0 !important;
-    margin-bottom: 1.2rem !important;
-    padding-bottom: 0.5rem !important;
-    border-bottom: 1px solid #1e293b;
-    font-size: 1rem !important;
-    letter-spacing: 0.2px;
-}
-
-/* ── Chat input bar ──────────────────────────────────────── */
+/* ── Chat input ──────────────────────────────────────────── */
 [data-testid="stChatInput"] {
-    background: #1e293b !important;
-    border: 1px solid #334155 !important;
-    border-radius: 14px !important;
+    background: var(--surface-2) !important;
+    border: 1px solid var(--border-2) !important;
+    border-radius: var(--r-xl) !important;
 }
 [data-testid="stChatInput"]:focus-within {
-    border-color: #3b82f6 !important;
-    box-shadow: 0 0 0 3px rgba(59,130,246,0.15) !important;
+    border-color: var(--blue) !important;
+    box-shadow: 0 0 0 3px var(--blue-glow) !important;
 }
-/* Force typed text to bright white — target every selector Chrome uses */
 [data-testid="stChatInput"] textarea,
 .stChatInput textarea,
 div[data-testid="stChatInput"] textarea,
 [data-testid="stChatInput"] > div textarea,
 [data-testid="stChatInput"] > div > div textarea {
-    color: #ffffff !important;
-    -webkit-text-fill-color: #ffffff !important;
+    color: var(--text-1) !important;
+    -webkit-text-fill-color: var(--text-1) !important;
     background: transparent !important;
-    caret-color: #60a5fa !important;
+    caret-color: var(--blue) !important;
 }
 [data-testid="stChatInput"] textarea::placeholder {
-    color: #475569 !important;
-    -webkit-text-fill-color: #475569 !important;
+    color: var(--text-3) !important;
+    -webkit-text-fill-color: var(--text-3) !important;
 }
 
-/* ── Voice mode recorder button ──────────────────────────── */
+/* ── Voice mode ──────────────────────────────────────────── */
 .voice-mode-wrap {
-    display: flex;
-    align-items: center;
-    gap: 12px;
+    display: flex; align-items: center; gap: 12px;
     padding: 12px 16px;
-    background: linear-gradient(135deg, rgba(37,99,235,0.08), rgba(124,58,237,0.06));
-    border: 1px solid rgba(59,130,246,0.2);
-    border-radius: 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--border-2);
+    border-radius: var(--r-md);
     margin-bottom: 12px;
 }
-.voice-status {
-    font-size: 13px;
-    color: #94a3b8;
-    font-style: italic;
-}
+.voice-status { font-size: 13px; color: var(--text-2); }
 
-/* ── Chat bubbles — assistant ────────────────────────────── */
+/* ── Chat bubbles ────────────────────────────────────────── */
 [data-testid="stChatMessage"]:has([data-testid="chatAvatarIcon-assistant"]) {
-    background: linear-gradient(135deg, #1e2d45 0%, #162032 100%) !important;
-    border: 1px solid #1e3a5f;
-    border-radius: 16px !important;
+    background: var(--surface-2) !important;
+    border: 1px solid var(--border) !important;
+    border-left: 3px solid var(--blue) !important;
+    border-radius: var(--r-md) !important;
     padding: 16px 20px !important;
-    margin-bottom: 12px;
-    box-shadow: 0 2px 12px rgba(59,130,246,0.08);
+    margin-bottom: 10px;
+    box-shadow: var(--sh-sm);
 }
-
-/* ── Chat bubbles — user ─────────────────────────────────── */
 [data-testid="stChatMessage"]:has([data-testid="chatAvatarIcon-user"]) {
-    background: linear-gradient(135deg, #1a1f2e 0%, #0f172a 100%) !important;
-    border: 1px solid #2d3748;
-    border-radius: 16px !important;
+    background: var(--surface-3) !important;
+    border: 1px solid var(--border-2) !important;
+    border-left: 3px solid var(--purple) !important;
+    border-radius: var(--r-md) !important;
     padding: 16px 20px !important;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
 }
-
-/* ── Chat message text — explicit bright white ───────────── */
-/* Cascade breaks inside dark gradient containers; override every layer */
 [data-testid="stChatMessage"] p,
 [data-testid="stChatMessage"] span:not([class*="material"]),
 [data-testid="stChatMessage"] .stMarkdown p,
@@ -341,187 +373,138 @@ div[data-testid="stChatInput"] textarea,
 [data-testid="stChatMessage"] .stMarkdown h3,
 [data-testid="stChatMessage"] .element-container p,
 [data-testid="stChatMessage"] div.stMarkdown {
-    color: #e8edf5 !important;
-    -webkit-text-fill-color: #e8edf5 !important;
+    color: var(--text-1) !important;
+    -webkit-text-fill-color: var(--text-1) !important;
+    line-height: 1.75 !important;
 }
-/* Strong/bold/code inside chat messages */
 [data-testid="stChatMessage"] strong,
-[data-testid="stChatMessage"] b {
-    color: #ffffff !important;
-    -webkit-text-fill-color: #ffffff !important;
-}
+[data-testid="stChatMessage"] b { color: #ffffff !important; -webkit-text-fill-color: #ffffff !important; }
 [data-testid="stChatMessage"] code {
-    color: #7dd3fc !important;
-    -webkit-text-fill-color: #7dd3fc !important;
-    background: rgba(125,211,252,0.08) !important;
+    color: var(--blue-soft) !important;
+    -webkit-text-fill-color: var(--blue-soft) !important;
+    background: var(--blue-dim) !important;
+    border-radius: 4px; padding: 1px 6px; font-size: 0.88em;
 }
 
-/* ── Buttons — primary ───────────────────────────────────── */
+/* ── Buttons ─────────────────────────────────────────────── */
 .stButton > button {
-    background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+    background: var(--blue) !important;
     color: #ffffff !important;
     border: none !important;
-    border-radius: 10px !important;
-    padding: 10px 22px !important;
+    border-radius: var(--r-sm) !important;
+    padding: 9px 22px !important;
     font-weight: 600 !important;
-    font-size: 14px !important;
-    letter-spacing: 0.2px;
-    transition: all 0.2s ease !important;
-    box-shadow: 0 2px 8px rgba(37,99,235,0.35) !important;
+    font-size: 13.5px !important;
+    letter-spacing: 0.1px;
+    transition: all 0.15s ease !important;
+    box-shadow: 0 1px 6px rgba(79,126,247,0.45) !important;
 }
 .stButton > button:hover {
-    background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
-    box-shadow: 0 4px 16px rgba(59,130,246,0.45) !important;
+    background: #6090f9 !important;
+    box-shadow: 0 4px 18px rgba(79,126,247,0.55) !important;
     transform: translateY(-1px);
 }
+.stButton > button:active { transform: translateY(0) !important; }
 
 /* ── Tabs ─────────────────────────────────────────────────── */
 .stTabs [data-baseweb="tab-list"] {
-    gap: 4px;
-    background: #161b27;
-    border-radius: 12px;
+    gap: 2px;
+    background: var(--surface-2) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--r-md);
     padding: 4px;
-    border: none !important;
 }
 .stTabs [data-baseweb="tab"] {
-    padding: 8px 24px;
-    border-radius: 9px;
+    padding: 7px 22px;
+    border-radius: var(--r-sm);
     font-weight: 500;
-    font-size: 14px;
-    color: #64748b !important;
+    font-size: 13.5px;
+    color: var(--text-2) !important;
     background: transparent !important;
     border: none !important;
+    transition: all 0.15s;
 }
 .stTabs [aria-selected="true"] {
-    background: linear-gradient(135deg, #1e3a5f, #1e2d45) !important;
-    color: #60a5fa !important;
-    box-shadow: 0 2px 8px rgba(59,130,246,0.2);
+    background: var(--surface-3) !important;
+    color: var(--text-1) !important;
+    box-shadow: var(--sh-sm);
 }
 
-/* ── Alert / info / success banners ─────────────────────── */
-[data-testid="stAlert"] {
-    border-radius: 10px !important;
-    border: none !important;
-}
-.stSuccess { background: rgba(16,185,129,0.12) !important; color: #6ee7b7 !important; }
-.stInfo    { background: rgba(59,130,246,0.12) !important; color: #93c5fd !important; }
-.stWarning { background: rgba(245,158,11,0.12) !important; color: #fcd34d !important; }
-.stError   { background: rgba(239,68,68,0.12)  !important; color: #fca5a5 !important; }
+/* ── Alerts ──────────────────────────────────────────────── */
+[data-testid="stAlert"] { border-radius: var(--r-md) !important; }
+.stSuccess { background: rgba(45,212,191,0.07) !important; color: #5eead4 !important; border-left: 3px solid var(--green) !important; border-right: none; border-top: none; border-bottom: none; }
+.stInfo    { background: var(--blue-dim) !important;        color: var(--blue-soft) !important; border-left: 3px solid var(--blue) !important; border-right: none; border-top: none; border-bottom: none; }
+.stWarning { background: rgba(251,191,36,0.07) !important;  color: var(--amber) !important;     border-left: 3px solid var(--amber) !important; border-right: none; border-top: none; border-bottom: none; }
+.stError   { background: rgba(248,113,113,0.07) !important; color: var(--red) !important;       border-left: 3px solid var(--red) !important;   border-right: none; border-top: none; border-bottom: none; }
 
 /* ── Sidebar profile cards ───────────────────────────────── */
 .profile-card {
-    border-radius: 12px;
-    padding: 13px 15px;
-    margin: 8px 0;
-    border-left: 3px solid;
+    border-radius: var(--r-md);
+    padding: 11px 13px;
+    margin: 7px 0;
+    border: 1px solid var(--border-2);
 }
-.tech-card { background: rgba(37,99,235,0.12); border-left-color: #3b82f6; }
-.role-card { background: rgba(124,58,237,0.12); border-left-color: #8b5cf6; }
-
+.tech-card { background: rgba(79,126,247,0.07); border-left: 3px solid var(--blue); }
+.role-card { background: rgba(155,112,245,0.07); border-left: 3px solid var(--purple); }
 .card-label {
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-    color: #64748b;
-    margin-bottom: 9px;
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.9px; color: var(--text-3); margin-bottom: 8px;
 }
-.tag-row { display: flex; flex-wrap: wrap; gap: 6px; }
-.tag {
-    display: inline-block;
-    padding: 3px 11px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 500;
-    white-space: nowrap;
-}
-.tag-tech { background: rgba(59,130,246,0.2); color: #93c5fd; }
-.tag-role { background: rgba(139,92,246,0.2); color: #c4b5fd; }
+.tag-row { display: flex; flex-wrap: wrap; gap: 5px; }
+.tag { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 500; white-space: nowrap; }
+.tag-tech { background: rgba(79,126,247,0.14); color: var(--blue-soft); border: 1px solid rgba(79,126,247,0.22); }
+.tag-role { background: rgba(155,112,245,0.14); color: var(--purple-soft); border: 1px solid rgba(155,112,245,0.22); }
 
-/* ── Selectbox dropdown menu ─────────────────────────────── */
-[data-baseweb="popover"],
-[data-baseweb="popover"] > div {
-    background: #1e293b !important;
-    border: 1px solid #334155 !important;
-    border-radius: 10px !important;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.5) !important;
-}
-[data-baseweb="menu"] {
-    background: #1e293b !important;
-}
-[data-baseweb="menu"] li,
-[data-baseweb="option"] {
-    background: #1e293b !important;
-    color: #e2e8f0 !important;
-}
-[data-baseweb="menu"] li:hover,
-[data-baseweb="option"]:hover {
-    background: #2d3f5e !important;
-    color: #ffffff !important;
-}
-[data-baseweb="menu"] [aria-selected="true"],
-[data-baseweb="option"][aria-selected="true"] {
-    background: rgba(59,130,246,0.18) !important;
-    color: #60a5fa !important;
-}
-
-/* ── Active context banner ───────────────────────────────── */
+/* ── Context banner ──────────────────────────────────────── */
 .context-banner {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    flex-wrap: wrap;
-    background: linear-gradient(135deg, rgba(37,99,235,0.10), rgba(124,58,237,0.07));
-    border: 1px solid rgba(59,130,246,0.22);
-    border-radius: 12px;
-    padding: 11px 20px;
-    margin: 0 0 1.4rem 0;
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    background: var(--surface-2);
+    border: 1px solid var(--border-2);
+    border-radius: var(--r-md);
+    padding: 10px 18px;
+    margin: 0 0 1.2rem 0;
 }
-.context-label {
-    font-size: 10.5px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: #475569;
-}
+.context-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text-3); }
 .context-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    background: rgba(59,130,246,0.14);
-    border: 1px solid rgba(59,130,246,0.28);
-    border-radius: 20px;
-    padding: 4px 14px;
-    font-size: 13px;
-    font-weight: 600;
-    color: #93c5fd;
+    display: inline-flex; align-items: center; gap: 5px;
+    background: var(--blue-dim); border: 1px solid rgba(79,126,247,0.28);
+    border-radius: 20px; padding: 3px 12px;
+    font-size: 12.5px; font-weight: 600; color: var(--blue-soft);
 }
 .context-pill-purple {
-    background: rgba(139,92,246,0.14);
-    border-color: rgba(139,92,246,0.28);
-    color: #c4b5fd;
+    background: var(--purple-dim); border-color: rgba(155,112,245,0.28);
+    color: var(--purple-soft);
 }
-.context-arrow { color: #334155; font-size: 16px; }
+.context-arrow { color: var(--border-2); font-size: 14px; }
 
-/* ── CRM log table ───────────────────────────────────────── */
-[data-testid="stDataFrame"] {
-    border-radius: 10px !important;
-    overflow: hidden;
+/* ── Dropdown menus ──────────────────────────────────────── */
+[data-baseweb="popover"],
+[data-baseweb="popover"] > div {
+    background: var(--surface-2) !important;
+    border: 1px solid var(--border-2) !important;
+    border-radius: var(--r-md) !important;
+    box-shadow: var(--sh-lg) !important;
+    z-index: 99999 !important;
 }
+[data-baseweb="menu"] { background: var(--surface-2) !important; }
+[data-baseweb="menu"] li,
+[data-baseweb="option"] { background: var(--surface-2) !important; color: var(--text-2) !important; }
+[data-baseweb="menu"] li:hover,
+[data-baseweb="option"]:hover { background: var(--surface-3) !important; color: var(--text-1) !important; }
+[data-baseweb="menu"] [aria-selected="true"],
+[data-baseweb="option"][aria-selected="true"] { background: var(--blue-dim) !important; color: var(--blue-soft) !important; }
+
+/* ── DataFrames ──────────────────────────────────────────── */
+[data-testid="stDataFrame"] { border-radius: var(--r-md) !important; overflow: hidden; }
 
 /* ── Slider ──────────────────────────────────────────────── */
 [data-testid="stSlider"] [data-baseweb="slider"] [role="slider"] {
-    background: #3b82f6 !important;
-    border-color: #3b82f6 !important;
+    background: var(--blue) !important; border-color: var(--blue) !important;
 }
 
-/* ── Divider ─────────────────────────────────────────────── */
-hr { border-color: #1e293b !important; }
-
-/* ── Spinner ─────────────────────────────────────────────── */
-[data-testid="stSpinner"] > div {
-    border-top-color: #3b82f6 !important;
-}
+/* ── Divider & spinner ───────────────────────────────────── */
+hr { border-color: var(--border) !important; }
+[data-testid="stSpinner"] > div { border-top-color: var(--blue) !important; }
 </style>
 """,
     unsafe_allow_html=True,
@@ -532,10 +515,10 @@ st.markdown(
 <div class="hero-wrap">
     <span class="hero-eyebrow">AI-Powered Interview Intelligence</span>
     <h1 class="hero-headline">Ace Every Interview.<br>Track Every Outcome.</h1>
-    <p class="hero-sub"><center>
+    <p class="hero-sub">
         Practice with a real-time AI interviewer that adapts to your tech stack,
         then log and analyse your actual interview experiences — all in one place.
-    </center></p>
+    </p>
     <div class="metrics-grid">
         <div class="metric-card">
             <div class="metric-number">50+</div>
